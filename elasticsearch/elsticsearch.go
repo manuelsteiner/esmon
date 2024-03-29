@@ -2,6 +2,8 @@ package elasticsearch
 
 import (
 	"encoding/json"
+	"errors"
+	"esmon/config"
 	"io"
 	"net/http"
 	"time"
@@ -13,6 +15,11 @@ const (
 	clusterHealthPath = "/_cluster/health"
 	clusterStatsPath  = "/_cluster/stats"
 )
+
+type Credentials struct {
+	Username string
+	Password string
+}
 
 type ClusterData struct {
 	ClusterInfo  ClusterInfo
@@ -49,14 +56,35 @@ type ClusterStats struct {
 		} `json:"store"`
 	} `json:"indices"`
 }
+     
+func GetCredentials(clusterConfig *config.ClusterConfig, defaultCredentials *Credentials) (*Credentials, error) {
+    credentials := Credentials{
+        Username: defaultCredentials.Username,
+        Password: defaultCredentials.Password,
+    }
 
-func FetchData(endpoint string) (*ClusterData, error) {
+    if clusterConfig.Username != "" {
+        credentials.Username = clusterConfig.Username
+    }
+
+    if clusterConfig.Password != "" {
+        credentials.Password = clusterConfig.Password
+    }
+
+    if credentials.Username == "" || credentials.Password == "" {
+        return nil, errors.New("Neither cluster nor default credentials were provided.") 
+    }
+
+    return &credentials, nil
+}
+
+func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterData, error) {
 	clusterData := ClusterData{}
 
 	errorGroup := errgroup.Group{}
 
 	errorGroup.Go(func() error {
-		clusterInfo, err := fetchClusterInfo(endpoint)
+		clusterInfo, err := fetchClusterInfo(endpoint, credentials, timeoutSeconds)
 		if err != nil {
 			return err
 		}
@@ -65,7 +93,7 @@ func FetchData(endpoint string) (*ClusterData, error) {
 	})
 
 	errorGroup.Go(func() error {
-		clusterStats, err := fetchClusterStats(endpoint)
+		clusterStats, err := fetchClusterStats(endpoint, credentials, timeoutSeconds)
 		if err != nil {
 			return err
 		}
@@ -80,10 +108,17 @@ func FetchData(endpoint string) (*ClusterData, error) {
 	}
 }
 
-func fetchClusterInfo(endpoint string) (*ClusterInfo, error) {
-	httpClient := http.Client{Timeout: 60 * time.Second}
+func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterInfo, error) {
+	httpClient := http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
 
-	resp, err := httpClient.Get(endpoint + clusterHealthPath)
+    req, err := http.NewRequest("GET", endpoint + clusterHealthPath, nil)
+    if err != nil {
+        return nil, err
+    }
+
+    req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +138,17 @@ func fetchClusterInfo(endpoint string) (*ClusterInfo, error) {
 	return &clusterInfo, nil
 }
 
-func fetchClusterStats(endpoint string) (*ClusterStats, error) {
-	httpClient := http.Client{Timeout: 60 * time.Second}
+func fetchClusterStats(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterStats, error) {
+	httpClient := http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
 
-	resp, err := httpClient.Get(endpoint + clusterStatsPath)
+    req, err := http.NewRequest("GET", endpoint + clusterStatsPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+    req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

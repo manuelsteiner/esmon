@@ -124,10 +124,6 @@ type refreshErrorMsg error
 type autorefreshIntervalChangeMsg uint
 type autorefreshTickMsg time.Time
 
-type credentials struct {
-	username string
-	password string
-}
 
 type initMsg struct {
 	args           arguments.Args
@@ -151,7 +147,7 @@ type mainModel struct {
 	currentCluster *config.ClusterConfig
 	clusterData    *elasticsearch.ClusterData
 
-	defaultCredentials credentials
+	defaultCredentials elasticsearch.Credentials
 
 	refreshing   bool
 	refreshError bool
@@ -251,7 +247,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, defaultKeyMap.refresh):
 			if m.currentCluster != nil && m.refreshIntervalSeconds == 0 && !m.refreshing {
 				m.refreshing = true
-                cmds = append(cmds, refreshData(m.currentCluster.Endpoint))
+                cmds = append(
+                    cmds, 
+                    refreshData(
+                        m.currentCluster,
+                        &m.defaultCredentials,
+                        m.refreshIntervalSeconds,
+                    ),
+                )
 			}
 		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
             cmds = append(cmds, changeAutorefreshInterval(m.refreshIntervalSeconds))
@@ -286,8 +289,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             m.refreshing = true
             cmds = append(
                 cmds,
-                tea.Sequence(refreshData(m.currentCluster.Endpoint),
-                autorefreshTick(m.refreshIntervalSeconds)),
+                tea.Sequence(
+                    refreshData(
+                        m.currentCluster,
+                        &m.defaultCredentials,
+                        m.refreshIntervalSeconds,
+                    ),
+                    autorefreshTick(m.refreshIntervalSeconds),
+                ),
             )
 		}
 
@@ -296,9 +305,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentCluster = msg.currentCluster
 		m.clusterData = msg.clusterData
 
-		m.defaultCredentials = credentials{
-			username: msg.args.Username,
-			password: msg.args.Password,
+		m.defaultCredentials = elasticsearch.Credentials{
+			Username: msg.args.Username,
+			Password: msg.args.Password,
 		}
 
 		m.refreshIntervalSeconds = msg.config.General.RefreshInterval
@@ -340,7 +349,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshing = true
 		m.lastRefresh = time.Time{}
 
-        cmds = append(cmds, refreshData(m.currentCluster.Endpoint))
+        cmds = append(
+            cmds,
+            refreshData(
+                m.currentCluster,
+                &m.defaultCredentials,
+                m.refreshIntervalSeconds,
+            ),
+        )
 
 	case clusterDataMsg:
 		m.refreshing = false
@@ -605,16 +621,36 @@ func initProgram() tea.Cmd {
 		}
 
 		if currentCluster != nil {
-			clusterData, err = elasticsearch.FetchData(currentCluster.Endpoint)
+            credentials, err := elasticsearch.GetCredentials(
+                currentCluster, 
+                &elasticsearch.Credentials{Username: args.Username, Password: args.Password},
+            )
+            if err != nil {
+                return errMsg(err)
+            }
+
+            clusterData, err = elasticsearch.FetchData(
+                currentCluster.Endpoint,
+                credentials,
+                conf.General.RefreshInterval,
+            )
+            if err != nil {
+                return refreshErrorMsg(err)
+            }
 		}
 
 		return initMsg{*args, *conf, currentCluster, clusterData}
 	}
 }
 
-func refreshData(endpoint string) tea.Cmd {
+func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elasticsearch.Credentials, refreshIntervalSeconds uint) tea.Cmd {
 	return func() tea.Msg {
-		clusterData, err := elasticsearch.FetchData(endpoint)
+        credentials, err := elasticsearch.GetCredentials(currentCluster, defaultCredentials)
+        if err != nil {
+            return errMsg(err)
+        }
+
+		clusterData, err := elasticsearch.FetchData(currentCluster.Endpoint, credentials, refreshIntervalSeconds)
 		if err != nil {
 			return refreshErrorMsg(err)
 		}
