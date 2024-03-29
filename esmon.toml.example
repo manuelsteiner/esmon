@@ -1,0 +1,45 @@
+# refresh_interval denotes the seconds to wait after fetching data before
+# the next fetch.
+[general]
+refresh_interval = 5
+
+# timout denotes the seconds to wait for a response when executing HTTP
+# requests.
+[http]
+timeout = 60
+
+# clusters contains all the Elasticsearch clusters (endpoints) available
+# for monitoring. Note the double brackets! The following fields are available.
+#  - alias is a name for the cluster for easier identification
+#  - endpoint is the Elasticsearch API HTTP(S) URL from where to fetch cluster 
+#    information
+#  - username is the user used for basic authentication at the endpoint
+#  - password is the password used for basic authentication at the endpoint
+#
+# Required field for a cluster configuration are alias and endpoint. The other
+# properties can be omitted. This is useful in case plaintext credentials should
+# not be stored in the configuration file. Credentials can be passed as command
+# line arguments.
+# The properties alias and endpoint must be unique. The reason for alias
+# uniqueness is that a cluster can be selected via command line argument by
+# specifying its alias.
+
+# A cluster configration in which all properties are provided
+[[clusters]]
+alias  = "cluster1"
+endpoint = "http://cluster1.example:9200"
+username = "user"
+password = "password"
+
+# A cluster configuration without password (it can be provided as command line
+# argument)
+[[clusters]]
+alias  = "cluster2"
+endpoint = "http://cluster2.example:9200"
+username = "user"
+
+# A cluster configuration without username and password (credentials can be 
+# provided as command line argument)
+[[clusters]]
+alias  = "cluster3"
+endpoint = "http://cluster3.example:9200"
