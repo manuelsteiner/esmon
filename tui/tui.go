@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -48,26 +49,73 @@ var (
 	kvTableKeyStyle   = lipgloss.NewStyle().PaddingRight(1)
 	kvTableValueStyle = lipgloss.NewStyle().PaddingLeft(1)
 
-	commands = [][]string{
-		{"<s>", "Shard allocation"},
-		{"<r>", "Relocating shards"},
-		{"<n>", "Node overview"},
-		{"<i>", "Index overview"},
-		{"<c>", "Clusters"},
+    defaultKeyMap = keyMap{
+        shardAllocation: key.NewBinding(
+            key.WithKeys("s"),
+            key.WithHelp("<s>", "Shard allocation"),
+        ),
+        relocatingShards: key.NewBinding(
+            key.WithKeys("r"),
+            key.WithHelp("<r>", "Relocating shards"),
+        ),
+        nodeOverview: key.NewBinding(
+            key.WithKeys("n"),
+            key.WithHelp("<n>", "Node overview"),
+        ),
+        indexOverview: key.NewBinding(
+            key.WithKeys("i"),
+            key.WithHelp("<i>", "Index overview"),
+        ),
+        clusters: key.NewBinding(
+            key.WithKeys("c"),
+            key.WithHelp("<c>", "Clusters"),
+        ),
+        refresh: key.NewBinding(
+            key.WithKeys("R"),
+            key.WithHelp("<R>", "refresh"),
+        ),
+        changeAutorefreshInterval: key.NewBinding(
+            key.WithKeys("a"),
+            key.WithHelp("<a>", "change"),
+        ),
+        quit: key.NewBinding(
+            key.WithKeys("q", "ctr-c"),
+            key.WithHelp("<q, C-c>", "Quit"),
+        ),
+    }
+
+	mainMenuKeyMap = []*key.Binding{
+        &defaultKeyMap.shardAllocation,
+		&defaultKeyMap.relocatingShards,
+		&defaultKeyMap.nodeOverview,
+		&defaultKeyMap.indexOverview,
+		&defaultKeyMap.clusters,
 	}
+
 )
 
 type errMsg error
 
-type Screen int
+type keyMap struct {
+    shardAllocation key.Binding
+    relocatingShards key.Binding
+    nodeOverview key.Binding
+    indexOverview key.Binding
+    clusters key.Binding
+    refresh key.Binding
+    changeAutorefreshInterval key.Binding
+    quit key.Binding
+}
+
+type screen int
 
 const (
-	Loading Screen = iota
-	ShardAllocation
-	RelocatingShards
-	NodeOverview
-	IndexOverview
-	Clusters
+	loading screen = iota
+	shardAllocation
+	relocatingShards
+	nodeOverview
+	indexOverview
+    clusters
 )
 
 type refreshingMsg bool
@@ -97,7 +145,7 @@ type mainModel struct {
 	loadingScreen loadingscreen.Model
 	clusterScreen clusterscreen.Model
 
-	screen Screen
+	screen screen
 
 	clusterConfig  []config.ClusterConfig
 	currentCluster *config.ClusterConfig
@@ -124,7 +172,7 @@ func NewMainModel() mainModel {
 	m.loadingScreen = loadingscreen.New()
 	m.clusterScreen = clusterscreen.New()
 
-	m.screen = Loading
+	m.screen = loading
 
 	m.refreshing = false
 	m.refreshError = false
@@ -186,36 +234,36 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyMsg:
-		if m.screen == Loading {
+		if m.screen == loading {
 			return m, nil
 		}
 
-		switch msg.String() {
-		case "s":
-			m.screen = ShardAllocation
+		switch {
+		case key.Matches(msg, defaultKeyMap.shardAllocation):
+			m.screen = shardAllocation
 			return m, nil
-		case "r":
-			m.screen = RelocatingShards
+		case key.Matches(msg, defaultKeyMap.relocatingShards):
+			m.screen = relocatingShards
 			return m, nil
-		case "n":
-			m.screen = NodeOverview
+		case key.Matches(msg, defaultKeyMap.nodeOverview):
+			m.screen = nodeOverview
 			return m, nil
-		case "i":
-			m.screen = IndexOverview
+		case key.Matches(msg, defaultKeyMap.indexOverview):
+			m.screen = indexOverview
 			return m, nil
-		case "c":
-			m.screen = Clusters
+		case key.Matches(msg, defaultKeyMap.clusters):
+			m.screen = clusters
 			return m, nil
-		case "R":
+		case key.Matches(msg, defaultKeyMap.refresh):
 			if m.currentCluster != nil && m.refreshIntervalSeconds == 0 && !m.refreshing {
 				m.refreshing = true
 				return m, refreshData(m.currentCluster.Endpoint)
 			} else {
 				return m, nil
 			}
-		case "a":
+		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
 			return m, changeAutorefreshInterval(m.refreshIntervalSeconds)
-		case "ctrl+c", "q":
+		case key.Matches(msg, defaultKeyMap.quit):
 			return m, tea.Quit
 		default:
 			m.clusterScreen, cmd = m.clusterScreen.Update(msg)
@@ -268,10 +316,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lastRefresh = time.Now()
 
 		if m.currentCluster != nil {
-			m.screen = ShardAllocation
+			m.screen = shardAllocation
 		} else {
 			m.refreshError = true
-			m.screen = Clusters
+			m.screen = clusters
 		}
 
 		statusRefreshInfoWidth := statusRefreshInfoWidth(m.refreshIntervalSeconds)
@@ -330,7 +378,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) View() string {
-	if m.screen == Loading {
+	if m.screen == loading {
 		return m.loadingScreen.View()
 	}
 	if m.err != nil {
@@ -391,6 +439,10 @@ func (m mainModel) View() string {
 	clusterInfoTable.Row("Size:", clusterSize)
 	clusterInfoTable.Row("Relocating shards:", clusterRelocatingShards)
 
+    var commands [][]string
+    for _, keyBinding := range mainMenuKeyMap {
+        commands = append(commands, []string{keyBinding.Help().Key, keyBinding.Help().Desc})
+    }
 	commandTable := table.New().
 		Rows(commands...).
 		BorderTop(false).
@@ -411,15 +463,15 @@ func (m mainModel) View() string {
 
 	contentRender := ""
 	switch {
-	case m.screen == ShardAllocation:
+	case m.screen == shardAllocation:
 		contentRender = "Shard Allocation"
-	case m.screen == RelocatingShards:
+	case m.screen == relocatingShards:
 		contentRender = "Relocating Shards"
-	case m.screen == NodeOverview:
+	case m.screen == nodeOverview:
 		contentRender = "Node Overview"
-	case m.screen == IndexOverview:
+	case m.screen == indexOverview:
 		contentRender = "Index Overview"
-	case m.screen == Clusters:
+	case m.screen == clusters:
 		contentRender = m.clusterScreen.View()
 	}
 

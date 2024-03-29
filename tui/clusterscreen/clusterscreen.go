@@ -25,9 +25,9 @@ var (
 	clusterTableStyles = table.DefaultStyles()
 
     defaultKeyMap = keyMap{
-        Enter: key.NewBinding(
+        enter: key.NewBinding(
             key.WithKeys("enter"),
-            key.WithHelp("⏎", "select"),
+            key.WithHelp("<⏎>", "select"),
         ),
     }
 )
@@ -45,7 +45,7 @@ type Model struct {
 }
 
 type keyMap struct {
-    Enter key.Binding
+    enter key.Binding
 }
 
 func New() Model {
@@ -98,7 +98,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, defaultKeyMap.Enter):
+		case key.Matches(msg, defaultKeyMap.enter):
 			clusterAlias := m.clusterTable.SelectedRow()[1]
 			cmds = append(cmds, selectCluster(clusterAlias))
 		}
@@ -136,9 +136,9 @@ func selectCluster(endpoint string) tea.Cmd {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Enter}
+	return []key.Binding{k.enter}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Enter},{}}
+	return [][]key.Binding{{k.enter},{}}
 }
