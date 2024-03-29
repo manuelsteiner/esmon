@@ -126,7 +126,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-    return m.clusterTable.View() + m.help.View(defaultKeyMap)
+    return lipgloss.JoinVertical(
+        lipgloss.Top,
+        m.clusterTable.View(),
+        m.help.View(defaultKeyMap),
+    )
 }
 
 func selectCluster(endpoint string) tea.Cmd {

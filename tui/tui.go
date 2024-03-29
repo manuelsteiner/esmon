@@ -313,7 +313,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshIntervalSeconds = msg.config.General.RefreshInterval
 		m.httpTimeoutSeconds = msg.config.Http.Timeout
 
-		m.lastRefresh = time.Now()
+        if m.clusterData != nil {
+		    m.lastRefresh = time.Now()
+        } else {
+            m.refreshError = true
+        }
 
 		if m.currentCluster != nil {
 			m.screen = shardAllocation
@@ -625,17 +629,13 @@ func initProgram() tea.Cmd {
                 currentCluster, 
                 &elasticsearch.Credentials{Username: args.Username, Password: args.Password},
             )
-            if err != nil {
-                return errMsg(err)
-            }
 
-            clusterData, err = elasticsearch.FetchData(
-                currentCluster.Endpoint,
-                credentials,
-                conf.General.RefreshInterval,
-            )
-            if err != nil {
-                return refreshErrorMsg(err)
+            if err  == nil {
+                clusterData, err = elasticsearch.FetchData(
+                    currentCluster.Endpoint,
+                    credentials,
+                    conf.General.RefreshInterval,
+                )
             }
 		}
 
