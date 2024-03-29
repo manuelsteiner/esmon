@@ -443,7 +443,7 @@ func (m mainModel) View() string {
 	clusterInfoTable.Row("Cluster:", clusterName)
 	clusterInfoTable.Row("Status:", clusterStatus)
 	clusterInfoTable.Row("Nodes:", clusterNodes)
-	clusterInfoTable.Row("Size:", clusterSize)
+	clusterInfoTable.Row("Data:", clusterSize)
 	clusterInfoTable.Row("Relocating shards:", clusterRelocatingShards)
 
     var commands [][]string
