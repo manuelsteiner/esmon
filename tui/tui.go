@@ -201,6 +201,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -231,49 +232,39 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		cmds = append(cmds, cmd)
 
-		return m, tea.Batch(cmds...)
-
 	case tea.KeyMsg:
 		if m.screen == loading {
-			return m, nil
+			break
 		}
 
 		switch {
 		case key.Matches(msg, defaultKeyMap.shardAllocation):
 			m.screen = shardAllocation
-			return m, nil
 		case key.Matches(msg, defaultKeyMap.relocatingShards):
 			m.screen = relocatingShards
-			return m, nil
 		case key.Matches(msg, defaultKeyMap.nodeOverview):
 			m.screen = nodeOverview
-			return m, nil
 		case key.Matches(msg, defaultKeyMap.indexOverview):
 			m.screen = indexOverview
-			return m, nil
 		case key.Matches(msg, defaultKeyMap.clusters):
 			m.screen = clusters
-			return m, nil
 		case key.Matches(msg, defaultKeyMap.refresh):
 			if m.currentCluster != nil && m.refreshIntervalSeconds == 0 && !m.refreshing {
 				m.refreshing = true
-				return m, refreshData(m.currentCluster.Endpoint)
-			} else {
-				return m, nil
+                cmds = append(cmds, refreshData(m.currentCluster.Endpoint))
 			}
 		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
-			return m, changeAutorefreshInterval(m.refreshIntervalSeconds)
+            cmds = append(cmds, changeAutorefreshInterval(m.refreshIntervalSeconds))
 		case key.Matches(msg, defaultKeyMap.quit):
-			return m, tea.Quit
+            cmds = append(cmds, tea.Quit)
 		default:
 			m.clusterScreen, cmd = m.clusterScreen.Update(msg)
-			return m, cmd
+            cmds = append(cmds, cmd)
 		}
 
 	case refreshErrorMsg:
 		m.refreshing = false
 		m.refreshError = true
-		return m, nil
 
 	case autorefreshIntervalChangeMsg:
 		lastRefreshIntervalSeconds := m.refreshIntervalSeconds
@@ -287,17 +278,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		statusRefreshIndicatorErrorStyle.Width(m.width - statusRefreshInfoWidth)
 
 		if lastRefreshIntervalSeconds == 0 && m.refreshIntervalSeconds > 0 {
-			return m, autorefreshTick(m.refreshIntervalSeconds)
-		} else {
-			return m, nil
+            cmds = append(cmds, autorefreshTick(m.refreshIntervalSeconds))
 		}
 
 	case autorefreshTickMsg:
-		if m.refreshIntervalSeconds == 0 {
-			return m, nil
-		} else {
-			m.refreshing = true
-			return m, tea.Sequence(refreshData(m.currentCluster.Endpoint), autorefreshTick(m.refreshIntervalSeconds))
+		if m.refreshIntervalSeconds > 0 {
+            m.refreshing = true
+            cmds = append(
+                cmds,
+                tea.Sequence(refreshData(m.currentCluster.Endpoint),
+                autorefreshTick(m.refreshIntervalSeconds)),
+            )
 		}
 
 	case initMsg:
@@ -329,13 +320,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		statusRefreshIndicatorRedStyle.Width(m.width - statusRefreshInfoWidth)
 		statusRefreshIndicatorErrorStyle.Width(m.width - statusRefreshInfoWidth)
 
-		var cmd tea.Cmd
 		m.clusterScreen, cmd = m.clusterScreen.Update(clusterscreen.ClusterMsg(m.clusterConfig))
+        cmds = append(cmds, cmd)
 
 		if m.currentCluster != nil && m.refreshIntervalSeconds > 0 {
-			return m, tea.Batch(autorefreshTick(m.refreshIntervalSeconds), cmd)
-		} else {
-			return m, cmd
+            cmds = append(cmds, autorefreshTick(m.refreshIntervalSeconds))
 		}
 
 	case clusterscreen.ClusterChangeMsg:
@@ -351,7 +340,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshing = true
 		m.lastRefresh = time.Time{}
 
-		return m, refreshData(m.currentCluster.Endpoint)
+        cmds = append(cmds, refreshData(m.currentCluster.Endpoint))
 
 	case clusterDataMsg:
 		m.refreshing = false
@@ -359,12 +348,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clusterData = msg
 		m.lastRefresh = time.Now()
 
-		return m, nil
-
 	case errMsg:
 		m.refreshing = false
 		m.err = msg
-		return m, nil
 
 	default:
 		m.refreshSpinner, cmd = m.refreshSpinner.Update(msg)
@@ -373,8 +359,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingScreen, cmd = m.loadingScreen.Update(msg)
 		cmds = append(cmds, cmd)
 
-		return m, tea.Batch(cmds...)
 	}
+
+    return m, tea.Batch(cmds...)
 }
 
 func (m mainModel) View() string {
