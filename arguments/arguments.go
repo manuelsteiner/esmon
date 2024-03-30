@@ -13,14 +13,14 @@ type Args struct {
 	Endpoint string
 	Username string
 	Password string
-    Insecure *bool
+	Insecure *bool
 	Config   string
 }
 
 func Parse() (*Args, error) {
 	args := Args{}
 
-    var insecure bool
+	var insecure bool
 
 	flag.StringVarP(&args.Cluster, "cluster", "c", "", "the cluster to select from the configuration")
 	flag.StringVarP(&args.Endpoint, "endpoint", "e", "", "the cluste endpoint to query (takes precedence over cluster)")
@@ -46,12 +46,12 @@ func Parse() (*Args, error) {
 		return nil, errors.New("Password must be used when specifying Username.")
 	}
 
-    insecureFlag := flag.Lookup("insecure")
-    if !insecureFlag.Changed {
-        args.Insecure = nil
-    } else {
-        args.Insecure = &insecure
-    }
+	insecureFlag := flag.Lookup("insecure")
+	if !insecureFlag.Changed {
+		args.Insecure = nil
+	} else {
+		args.Insecure = &insecure
+	}
 
 	return &args, nil
 }

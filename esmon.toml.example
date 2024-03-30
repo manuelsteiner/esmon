@@ -4,9 +4,12 @@
 refresh_interval = 5
 
 # timout denotes the seconds to wait for a response when executing HTTP
-# requests.
+# requests. Default: 60
+# insecure turns off endpoint certificate verification (useful for environments
+# where the CA certificate is not available). Default: false
 [http]
 timeout = 60
+insecure = false
 
 # clusters contains all the Elasticsearch clusters (endpoints) available
 # for monitoring. Note the double brackets! The following fields are available.
@@ -43,3 +46,28 @@ username = "user"
 [[clusters]]
 alias  = "cluster3"
 endpoint = "http://cluster3.example:9200"
+
+# theme defines the program colors. All values are optional. A present value
+# overrides the default theme value. The following configuration shows the 
+# default theme
+# Values must be parsable by the lipgloss.Color() function of the lipgloss
+# library.
+# (see https://github.com/charmbracelet/lipgloss?tab=readme-ov-file#colors)
+[theme]
+logo_color: "15"
+
+spinner_color:  "202"
+
+foreground_color_light: "15"
+foreground_color_dark: "16"
+foreground_color_light_muted: "245"
+foreground_color_dark_muted: "240"
+foreground_color_highlighted: "202"
+
+background_color_status_green: "29"
+background_color_status_yellow: "220"
+background_color_status_red: "196"
+background_color_status_error: "240"
+
+border_color: "15"
+border_color_muted: "240"

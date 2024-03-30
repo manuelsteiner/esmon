@@ -10,8 +10,8 @@ import (
 )
 
 var (
-    defaultTheme = styles.GetTheme(nil)
-    logoStyle = lipgloss.NewStyle().Bold(true).Foreground(defaultTheme.LogoColor)
+	defaultTheme        = styles.GetTheme(nil)
+	logoStyle           = lipgloss.NewStyle().Bold(true).Foreground(defaultTheme.LogoColor)
 	loadingSpinnerStyle = lipgloss.NewStyle().Height(1).MarginTop(1).Align(lipgloss.Center).Bold(true).Foreground(defaultTheme.SpinnerColor)
 )
 
@@ -30,7 +30,7 @@ func New(theme *styles.Theme) Model {
 	loadingSpinner.Style = loadingSpinnerStyle
 	m.loadingSpinner = loadingSpinner
 
-    setStyles(theme)
+	setStyles(theme)
 
 	return m
 }
@@ -52,10 +52,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		logoWidth, _ := lipgloss.Size(logoRender)
 
 		loadingSpinnerStyle.Width(logoWidth)
-    
-    case styles.ThemeChangeMsg:
-        var theme = styles.Theme(msg)
-        setStyles(&theme)
+
+	case styles.ThemeChangeMsg:
+		var theme = styles.Theme(msg)
+		setStyles(&theme)
 	default:
 		var cmd tea.Cmd
 		m.loadingSpinner, cmd = m.loadingSpinner.Update(msg)
@@ -71,6 +71,6 @@ func (m Model) View() string {
 }
 
 func setStyles(theme *styles.Theme) {
-    logoStyle = logoStyle.Foreground(theme.LogoColor)
-    loadingSpinnerStyle = loadingSpinnerStyle.Foreground(theme.SpinnerColor)
+	logoStyle = logoStyle.Foreground(theme.LogoColor)
+	loadingSpinnerStyle = loadingSpinnerStyle.Foreground(theme.SpinnerColor)
 }

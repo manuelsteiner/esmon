@@ -14,19 +14,19 @@ type Config struct {
 	Clusters []ClusterConfig `mapstructure:"clusters" validate:"unique=Alias,unique=Endpoint,dive"`
 	Http     HttpConfig      `mapstructure:"http"`
 	General  GeneralConfig   `mapstructure:"general"`
-    Theme    ThemeConfig     `mapstructure:"theme"`
+	Theme    ThemeConfig     `mapstructure:"theme"`
 }
 
 type ClusterConfig struct {
-    Alias    string `mapstructure:"alias" validate:"required"`
+	Alias    string `mapstructure:"alias" validate:"required"`
 	Endpoint string `mapstructure:"endpoint" validate:"required,http_url"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 }
 
 type HttpConfig struct {
-	Timeout uint `mapstructure:"timeout"`
-    Insecure bool `mapstructure:"insecure"`
+	Timeout  uint `mapstructure:"timeout"`
+	Insecure bool `mapstructure:"insecure"`
 }
 
 type GeneralConfig struct {
@@ -44,12 +44,12 @@ type ThemeConfig struct {
 	ForegroundColorDarkMuted   string `mapstructure:"foreground_color_dark_muted"`
 	ForegroundColorHighlighted string `mapstructure:"foreground_color_highlighted"`
 
-	BackgroundColorStatusGreen   string `mapstructure:"background_color_status_green"`
+	BackgroundColorStatusGreen  string `mapstructure:"background_color_status_green"`
 	BackgroundColorStatusYellow string `mapstructure:"background_color_status_yellow"`
 	BackgroundColorStatusRed    string `mapstructure:"background_color_status_red"`
 	BackgroundColorStatusError  string `mapstructure:"background_color_status_error"`
 
-	BorderColor string `mapstructure:"border_color"`
+	BorderColor      string `mapstructure:"border_color"`
 	BorderColorMuted string `mapstructure:"border_color_muted"`
 }
 

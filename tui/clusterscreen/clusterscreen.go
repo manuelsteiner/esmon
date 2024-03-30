@@ -24,12 +24,12 @@ var (
 
 	clusterTableStyles = table.DefaultStyles()
 
-    defaultKeyMap = keyMap{
-        enter: key.NewBinding(
-            key.WithKeys("enter"),
-            key.WithHelp("<⏎>", "select"),
-        ),
-    }
+	defaultKeyMap = keyMap{
+		enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("<⏎>", "select"),
+		),
+	}
 )
 
 type ClusterMsg []config.ClusterConfig
@@ -41,11 +41,11 @@ type Model struct {
 
 	clusterTable table.Model
 
-    help help.Model
+	help help.Model
 }
 
 type keyMap struct {
-    enter key.Binding
+	enter key.Binding
 }
 
 func New(theme *styles.Theme) Model {
@@ -62,14 +62,14 @@ func New(theme *styles.Theme) Model {
 		BorderForeground(lipgloss.Color(theme.BorderColorMuted)).
 		BorderBottom(true).
 		Bold(false).
-        Foreground(lipgloss.Color(theme.ForegroundColorLight))
+		Foreground(lipgloss.Color(theme.ForegroundColorLight))
 	clusterTableStyles.Selected = clusterTableStyles.Selected.
 		Foreground(lipgloss.Color(theme.ForegroundColorHighlighted)).
 		Bold(false)
 	m.clusterTable.SetStyles(clusterTableStyles)
 
-    m.help = help.New()
-    m.help.Styles = styles.HelpStyle
+	m.help = help.New()
+	m.help.Styles = styles.HelpStyle
 
 	return m
 }
@@ -95,14 +95,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.clusterTable.SetHeight(m.height - 3)
 		m.clusterTable.SetColumns(clusterTableColumns)
 
-        m.help.Width = m.width - 2
+		m.help.Width = m.width - 2
 
-    case styles.ThemeChangeMsg:
-        var theme = styles.Theme(msg)
-        setStyles(&theme)
+	case styles.ThemeChangeMsg:
+		var theme = styles.Theme(msg)
+		setStyles(&theme)
 
-        m.clusterTable.SetStyles(clusterTableStyles)
-        m.help.Styles = styles.HelpStyle
+		m.clusterTable.SetStyles(clusterTableStyles)
+		m.help.Styles = styles.HelpStyle
 
 	case tea.KeyMsg:
 		switch {
@@ -134,19 +134,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-    return lipgloss.JoinVertical(
-        lipgloss.Top,
-        m.clusterTable.View(),
-        m.help.View(defaultKeyMap),
-    )
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		m.clusterTable.View(),
+		m.help.View(defaultKeyMap),
+	)
 }
 
 func setStyles(theme *styles.Theme) {
-    clusterTableStyles.Header = clusterTableStyles.Header.
-        BorderForeground(lipgloss.Color(theme.BorderColorMuted)).
-        Foreground(lipgloss.Color(theme.ForegroundColorLight))
-    clusterTableStyles.Selected = clusterTableStyles.Selected.
-        Foreground(lipgloss.Color(theme.ForegroundColorHighlighted))
+	clusterTableStyles.Header = clusterTableStyles.Header.
+		BorderForeground(lipgloss.Color(theme.BorderColorMuted)).
+		Foreground(lipgloss.Color(theme.ForegroundColorLight))
+	clusterTableStyles.Selected = clusterTableStyles.Selected.
+		Foreground(lipgloss.Color(theme.ForegroundColorHighlighted))
 }
 
 func selectCluster(endpoint string) tea.Cmd {
@@ -160,5 +160,5 @@ func (k keyMap) ShortHelp() []key.Binding {
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.enter},{}}
+	return [][]key.Binding{{k.enter}, {}}
 }
