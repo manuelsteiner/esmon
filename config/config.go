@@ -14,6 +14,7 @@ type Config struct {
 	Clusters []ClusterConfig `mapstructure:"clusters" validate:"unique=Alias,unique=Endpoint,dive"`
 	Http     HttpConfig      `mapstructure:"http"`
 	General  GeneralConfig   `mapstructure:"general"`
+    Theme    ThemeConfig     `mapstructure:"theme"`
 }
 
 type ClusterConfig struct {
@@ -25,10 +26,31 @@ type ClusterConfig struct {
 
 type HttpConfig struct {
 	Timeout uint `mapstructure:"timeout"`
+    Insecure bool `mapstructure:"insecure"`
 }
 
 type GeneralConfig struct {
 	RefreshInterval uint `mapstructure:"refresh_interval"`
+}
+
+type ThemeConfig struct {
+	LogoColor string `mapstructure:"logo_color"`
+
+	SpinnerColor string `mapstructure:"spinner_color"`
+
+	ForegroundColorLight       string `mapstructure:"foreground_color_light"`
+	ForegroundColorDark        string `mapstructure:"foreground_color_dar"`
+	ForegroundColorLightMuted  string `mapstructure:"foreground_color_light_muted"`
+	ForegroundColorDarkMuted   string `mapstructure:"foreground_color_dark_muted"`
+	ForegroundColorHighlighted string `mapstructure:"foreground_color_highlighted"`
+
+	BackgroundColorStatusGreen   string `mapstructure:"background_color_status_green"`
+	BackgroundColorStatusYellow string `mapstructure:"background_color_status_yellow"`
+	BackgroundColorStatusRed    string `mapstructure:"background_color_status_red"`
+	BackgroundColorStatusError  string `mapstructure:"background_color_status_error"`
+
+	BorderColor string `mapstructure:"border_color"`
+	BorderColorMuted string `mapstructure:"border_color_muted"`
 }
 
 func Load(configFile string) (*Config, error) {
@@ -59,6 +81,7 @@ func Load(configFile string) (*Config, error) {
 
 	v.SetDefault("general.refresh_interval", constants.DefaultRefreshIntervalSeconds)
 	v.SetDefault("http.timeout", constants.DefaultHttpTimeout)
+	v.SetDefault("http.insecure", constants.DefaultHttpInsecure)
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

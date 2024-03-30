@@ -1,6 +1,7 @@
 package elasticsearch
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"esmon/config"
@@ -78,13 +79,13 @@ func GetCredentials(clusterConfig *config.ClusterConfig, defaultCredentials *Cre
     return &credentials, nil
 }
 
-func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterData, error) {
+func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterData, error) {
 	clusterData := ClusterData{}
 
 	errorGroup := errgroup.Group{}
 
 	errorGroup.Go(func() error {
-		clusterInfo, err := fetchClusterInfo(endpoint, credentials, timeoutSeconds)
+		clusterInfo, err := fetchClusterInfo(endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -93,7 +94,7 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint) (
 	})
 
 	errorGroup.Go(func() error {
-		clusterStats, err := fetchClusterStats(endpoint, credentials, timeoutSeconds)
+		clusterStats, err := fetchClusterStats(endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -108,8 +109,16 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint) (
 	}
 }
 
-func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterInfo, error) {
-	httpClient := http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
+func httpClient(timeoutSeconds uint, insecure bool) http.Client {
+    customTransport := http.DefaultTransport.(*http.Transport).Clone()
+    customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: insecure}
+    httpClient := http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second, Transport: customTransport}
+    
+    return httpClient
+}
+
+func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterInfo, error) {
+    httpClient := httpClient(timeoutSeconds, insecure)
 
     req, err := http.NewRequest("GET", endpoint + clusterHealthPath, nil)
     if err != nil {
@@ -138,8 +147,8 @@ func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds 
 	return &clusterInfo, nil
 }
 
-func fetchClusterStats(endpoint string, credentials *Credentials, timeoutSeconds uint) (*ClusterStats, error) {
-	httpClient := http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
+func fetchClusterStats(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterStats, error) {
+    httpClient := httpClient(timeoutSeconds, insecure)
 
     req, err := http.NewRequest("GET", endpoint + clusterStatsPath, nil)
 	if err != nil {

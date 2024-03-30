@@ -7,6 +7,7 @@ import (
 	"esmon/elasticsearch"
 	"esmon/tui/clusterscreen"
 	"esmon/tui/loadingscreen"
+	"esmon/tui/styles"
 	"fmt"
 	"os"
 	"slices"
@@ -21,22 +22,25 @@ import (
 )
 
 var (
-	overviewStyle            = lipgloss.NewStyle().Height(5).MarginBottom(2)
-	infoStyle                = lipgloss.NewStyle().Height(5)
-	clusterInfoStyle         = lipgloss.NewStyle().Height(5).MarginRight(10)
-	clusterHealthGreenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("29"))
-	clusterHealthYellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("220"))
-	clusterHealthRedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	commandInfoStyle         = lipgloss.NewStyle().Height(5)
-	logoStyle                = lipgloss.NewStyle().Align(lipgloss.Right).Bold(true)
+    defaultTheme = styles.GetTheme(nil)
 
-	contentStyle = lipgloss.NewStyle().Height(1).Border(lipgloss.RoundedBorder())
+	logoStyle = lipgloss.NewStyle().Align(lipgloss.Right).Bold(true).Foreground(defaultTheme.ForegroundColorLight)
+
+	overviewStyle            = lipgloss.NewStyle().Height(styles.OverviewHeight).MarginBottom(2)
+	infoStyle                = lipgloss.NewStyle().Height(styles.OverviewHeight)
+	clusterInfoStyle         = lipgloss.NewStyle().Height(styles.OverviewHeight).MarginRight(10)
+	clusterHealthGreenStyle  = lipgloss.NewStyle().Foreground(defaultTheme.BackgroundColorStatusGreen)
+	clusterHealthYellowStyle = lipgloss.NewStyle().Foreground(defaultTheme.BackgroundColorStatusYellow)
+	clusterHealthRedStyle    = lipgloss.NewStyle().Foreground(defaultTheme.BackgroundColorStatusRed)
+	commandInfoStyle         = lipgloss.NewStyle().Height(styles.OverviewHeight)
+
+	contentStyle = lipgloss.NewStyle().Height(1).Border(lipgloss.RoundedBorder()).Foreground(defaultTheme.ForegroundColorLight)
 
 	statusStyle                       = lipgloss.NewStyle().Height(1)
-	statusGreenStyle                  = statusStyle.Copy().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("29"))
-	statusYellowStyle                 = statusStyle.Copy().Foreground(lipgloss.Color("16")).Background(lipgloss.Color("220"))
-	statusRedStyle                    = statusStyle.Copy().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("196"))
-	statusErrorStyle                  = statusStyle.Copy().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("240"))
+	statusGreenStyle                  = statusStyle.Copy().Foreground(defaultTheme.ForegroundColorLight).Background(defaultTheme.BackgroundColorStatusGreen)
+	statusYellowStyle                 = statusStyle.Copy().Foreground(defaultTheme.ForegroundColorDark).Background(defaultTheme.BackgroundColorStatusYellow)
+	statusRedStyle                    = statusStyle.Copy().Foreground(defaultTheme.ForegroundColorLight).Background(defaultTheme.BackgroundColorStatusRed)
+	statusErrorStyle                  = statusStyle.Copy().Foreground(defaultTheme.ForegroundColorLight).Background(defaultTheme.BackgroundColorStatusError)
 	statusRefreshIndicatorGreenStyle  = lipgloss.NewStyle().Inherit(statusGreenStyle)
 	statusRefreshIndicatorYellowStyle = lipgloss.NewStyle().Inherit(statusYellowStyle)
 	statusRefreshIndicatorRedStyle    = lipgloss.NewStyle().Inherit(statusRedStyle)
@@ -46,8 +50,8 @@ var (
 	statusRefreshInfoRedStyle         = lipgloss.NewStyle().Inherit(statusRedStyle)
 	statusRefreshInfoErrorStyle       = lipgloss.NewStyle().Inherit(statusErrorStyle)
 
-	kvTableKeyStyle   = lipgloss.NewStyle().PaddingRight(1)
-	kvTableValueStyle = lipgloss.NewStyle().PaddingLeft(1)
+	kvTableKeyStyle   = lipgloss.NewStyle().PaddingRight(1).Foreground(defaultTheme.ForegroundColorLight)
+	kvTableValueStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(defaultTheme.ForegroundColorLight)
 
     defaultKeyMap = keyMap{
         shardAllocation: key.NewBinding(
@@ -138,6 +142,8 @@ type mainModel struct {
 	width  int
 	height int
 
+    theme styles.Theme
+
 	loadingScreen loadingscreen.Model
 	clusterScreen clusterscreen.Model
 
@@ -157,7 +163,7 @@ type mainModel struct {
 
 	refreshSpinner spinner.Model
 
-	httpTimeoutSeconds uint
+    httpConfig config.HttpConfig
 
 	err error
 }
@@ -165,8 +171,8 @@ type mainModel struct {
 func NewMainModel() mainModel {
 	m := mainModel{}
 
-	m.loadingScreen = loadingscreen.New()
-	m.clusterScreen = clusterscreen.New()
+	m.loadingScreen = loadingscreen.New(&defaultTheme)
+	m.clusterScreen = clusterscreen.New(&defaultTheme)
 
 	m.screen = loading
 
@@ -252,7 +258,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                     refreshData(
                         m.currentCluster,
                         &m.defaultCredentials,
-                        m.refreshIntervalSeconds,
+                        m.httpConfig,
                     ),
                 )
 			}
@@ -293,7 +299,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                     refreshData(
                         m.currentCluster,
                         &m.defaultCredentials,
-                        m.refreshIntervalSeconds,
+                        m.httpConfig,
                     ),
                     autorefreshTick(m.refreshIntervalSeconds),
                 ),
@@ -301,6 +307,15 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case initMsg:
+        m.theme = styles.GetTheme(&msg.config.Theme)
+        setStyles(m.theme)
+
+        m.loadingScreen, cmd = m.loadingScreen.Update(styles.ThemeChangeMsg(m.theme))
+        cmds = append(cmds, cmd)
+
+        //m.clusterScreen, cmd = m.clusterScreen.Update(styles.ThemeChangeMsg(m.theme))
+        //cmds = append(cmds, cmd)
+
 		m.clusterConfig = msg.config.Clusters
 		m.currentCluster = msg.currentCluster
 		m.clusterData = msg.clusterData
@@ -311,7 +326,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.refreshIntervalSeconds = msg.config.General.RefreshInterval
-		m.httpTimeoutSeconds = msg.config.Http.Timeout
+
+        httpInsecure := msg.config.Http.Insecure
+        if msg.args.Insecure != nil {
+            httpInsecure = *msg.args.Insecure
+        }
+
+        m.httpConfig = config.HttpConfig{
+            Timeout: msg.config.Http.Timeout,
+            Insecure: httpInsecure,
+        }
 
         if m.clusterData != nil {
 		    m.lastRefresh = time.Now()
@@ -358,7 +382,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             refreshData(
                 m.currentCluster,
                 &m.defaultCredentials,
-                m.refreshIntervalSeconds,
+                m.httpConfig,
             ),
         )
 
@@ -406,11 +430,11 @@ func (m mainModel) View() string {
 				if row == 2 && m.clusterData != nil {
 					switch {
 					case m.clusterData.ClusterInfo.Status == "green":
-						return kvTableValueStyle.Copy().Inherit(clusterHealthGreenStyle)
+						return kvTableValueStyle.Copy().Foreground(m.theme.BackgroundColorStatusGreen)
 					case m.clusterData.ClusterInfo.Status == "yellow":
-						return kvTableValueStyle.Copy().Inherit(clusterHealthYellowStyle)
+						return kvTableValueStyle.Copy().Foreground(m.theme.BackgroundColorStatusYellow)
 					case m.clusterData.ClusterInfo.Status == "red":
-						return kvTableValueStyle.Copy().Inherit(clusterHealthRedStyle)
+						return kvTableValueStyle.Copy().Foreground(m.theme.BackgroundColorStatusRed)
 					}
 				}
 				return kvTableValueStyle
@@ -629,12 +653,18 @@ func initProgram() tea.Cmd {
                 currentCluster, 
                 &elasticsearch.Credentials{Username: args.Username, Password: args.Password},
             )
+            
+            var insecure = conf.Http.Insecure
+            if args.Insecure != nil {
+                insecure = *args.Insecure
+            }
 
             if err  == nil {
                 clusterData, err = elasticsearch.FetchData(
                     currentCluster.Endpoint,
                     credentials,
                     conf.General.RefreshInterval,
+                    insecure,
                 )
             }
 		}
@@ -643,14 +673,40 @@ func initProgram() tea.Cmd {
 	}
 }
 
-func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elasticsearch.Credentials, refreshIntervalSeconds uint) tea.Cmd {
+func setStyles(theme styles.Theme) {
+	logoStyle = logoStyle.Foreground(theme.LogoColor)
+
+	clusterHealthGreenStyle  = clusterHealthGreenStyle.Foreground(theme.BackgroundColorStatusGreen)
+	clusterHealthYellowStyle = clusterHealthYellowStyle.Foreground(theme.BackgroundColorStatusYellow)
+	clusterHealthRedStyle    = clusterHealthRedStyle.Foreground(theme.BackgroundColorStatusRed)
+
+	contentStyle = contentStyle.Foreground(theme.BorderColor)
+
+	statusGreenStyle                  = statusGreenStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusGreen)
+	statusYellowStyle                 = statusYellowStyle.Foreground(theme.ForegroundColorDark).Background(theme.BackgroundColorStatusYellow)
+	statusRedStyle                    = statusRedStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusRed)
+	statusErrorStyle                  = statusErrorStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusError)
+	statusRefreshIndicatorGreenStyle  = statusRefreshIndicatorGreenStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusGreen)
+	statusRefreshIndicatorYellowStyle = statusRefreshIndicatorYellowStyle.Foreground(theme.ForegroundColorDark).Background(theme.BackgroundColorStatusYellow)
+	statusRefreshIndicatorRedStyle    = statusRefreshIndicatorRedStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusRed)
+	statusRefreshIndicatorErrorStyle  = statusRefreshIndicatorErrorStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusError)
+	statusRefreshInfoGreenStyle       = statusRefreshInfoGreenStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusGreen)
+	statusRefreshInfoYellowStyle      = statusRefreshInfoYellowStyle.Foreground(theme.ForegroundColorDark).Background(theme.BackgroundColorStatusYellow)
+	statusRefreshInfoRedStyle         = statusRefreshInfoRedStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusRed)
+	statusRefreshInfoErrorStyle       = statusRefreshInfoErrorStyle.Foreground(theme.ForegroundColorLight).Background(theme.BackgroundColorStatusError)
+
+	kvTableKeyStyle   = kvTableKeyStyle.Foreground(theme.ForegroundColorLight)
+	kvTableValueStyle = kvTableValueStyle.Foreground(theme.ForegroundColorLight)
+}
+
+func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elasticsearch.Credentials, httpConfig config.HttpConfig) tea.Cmd {
 	return func() tea.Msg {
         credentials, err := elasticsearch.GetCredentials(currentCluster, defaultCredentials)
         if err != nil {
             return errMsg(err)
         }
 
-		clusterData, err := elasticsearch.FetchData(currentCluster.Endpoint, credentials, refreshIntervalSeconds)
+		clusterData, err := elasticsearch.FetchData(currentCluster.Endpoint, credentials, httpConfig.Timeout, httpConfig.Insecure)
 		if err != nil {
 			return refreshErrorMsg(err)
 		}

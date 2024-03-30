@@ -12,6 +12,7 @@ const (
 
 	DefaultRefreshIntervalSeconds = 5
 	DefaultHttpTimeout            = 60
+    DefaultHttpInsecure           = false
 
 	RedactedPassword = "*****"
 )

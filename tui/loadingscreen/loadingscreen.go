@@ -10,7 +10,9 @@ import (
 )
 
 var (
-	loadingSpinnerStyle = lipgloss.NewStyle().Height(1).MarginTop(1).Align(lipgloss.Center).Bold(true).Foreground(lipgloss.Color(styles.SpinnerColor))
+    defaultTheme = styles.GetTheme(nil)
+    logoStyle = lipgloss.NewStyle().Bold(true).Foreground(defaultTheme.LogoColor)
+	loadingSpinnerStyle = lipgloss.NewStyle().Height(1).MarginTop(1).Align(lipgloss.Center).Bold(true).Foreground(defaultTheme.SpinnerColor)
 )
 
 type Model struct {
@@ -20,13 +22,15 @@ type Model struct {
 	loadingSpinner spinner.Model
 }
 
-func New() Model {
+func New(theme *styles.Theme) Model {
 	m := Model{}
 
 	loadingSpinner := spinner.New()
 	loadingSpinner.Spinner = spinner.MiniDot
 	loadingSpinner.Style = loadingSpinnerStyle
 	m.loadingSpinner = loadingSpinner
+
+    setStyles(theme)
 
 	return m
 }
@@ -48,6 +52,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		logoWidth, _ := lipgloss.Size(logoRender)
 
 		loadingSpinnerStyle.Width(logoWidth)
+    
+    case styles.ThemeChangeMsg:
+        var theme = styles.Theme(msg)
+        setStyles(&theme)
 	default:
 		var cmd tea.Cmd
 		m.loadingSpinner, cmd = m.loadingSpinner.Update(msg)
@@ -59,5 +67,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Top, lipgloss.NewStyle().Bold(true).Render(constants.Logo), m.loadingSpinner.View()))
+		lipgloss.JoinVertical(lipgloss.Top, logoStyle.Render(constants.Logo), m.loadingSpinner.View()))
+}
+
+func setStyles(theme *styles.Theme) {
+    logoStyle = logoStyle.Foreground(theme.LogoColor)
+    loadingSpinnerStyle = loadingSpinnerStyle.Foreground(theme.SpinnerColor)
 }

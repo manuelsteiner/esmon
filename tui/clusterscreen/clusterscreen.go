@@ -48,7 +48,7 @@ type keyMap struct {
     enter key.Binding
 }
 
-func New() Model {
+func New(theme *styles.Theme) Model {
 	m := Model{}
 
 	m.clusterTable = table.New(
@@ -59,11 +59,12 @@ func New() Model {
 
 	clusterTableStyles.Header = clusterTableStyles.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color(styles.BorderColorMuted)).
+		BorderForeground(lipgloss.Color(theme.BorderColorMuted)).
 		BorderBottom(true).
-		Bold(false)
+		Bold(false).
+        Foreground(lipgloss.Color(theme.ForegroundColorLight))
 	clusterTableStyles.Selected = clusterTableStyles.Selected.
-		Foreground(lipgloss.Color(styles.ForegroundColorHighlighted)).
+		Foreground(lipgloss.Color(theme.ForegroundColorHighlighted)).
 		Bold(false)
 	m.clusterTable.SetStyles(clusterTableStyles)
 
@@ -95,6 +96,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.clusterTable.SetColumns(clusterTableColumns)
 
         m.help.Width = m.width - 2
+
+    case styles.ThemeChangeMsg:
+        var theme = styles.Theme(msg)
+        setStyles(&theme)
+
+        m.clusterTable.SetStyles(clusterTableStyles)
+        m.help.Styles = styles.HelpStyle
 
 	case tea.KeyMsg:
 		switch {
@@ -131,6 +139,14 @@ func (m Model) View() string {
         m.clusterTable.View(),
         m.help.View(defaultKeyMap),
     )
+}
+
+func setStyles(theme *styles.Theme) {
+    clusterTableStyles.Header = clusterTableStyles.Header.
+        BorderForeground(lipgloss.Color(theme.BorderColorMuted)).
+        Foreground(lipgloss.Color(theme.ForegroundColorLight))
+    clusterTableStyles.Selected = clusterTableStyles.Selected.
+        Foreground(lipgloss.Color(theme.ForegroundColorHighlighted))
 }
 
 func selectCluster(endpoint string) tea.Cmd {
