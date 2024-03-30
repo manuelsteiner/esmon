@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"esmon/config"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -116,18 +114,18 @@ type NodeStats struct {
 			Used         string `json:"used"`
 			UsedInBytes  int    `json:"used_in_bytes"`
 		} `json:"swap"`
-		Fs struct {
-			Timestamp int64 `json:"timestamp"`
-			Total     struct {
-				Total            string `json:"total"`
-				TotalInBytes     int64  `json:"total_in_bytes"`
-				Free             string `json:"free"`
-				FreeInBytes      int64  `json:"free_in_bytes"`
-				Available        string `json:"available"`
-				AvailableInBytes int64  `json:"available_in_bytes"`
-			} `json:"total"`
-		} `json:"fs"`
 	} `json:"os"`
+	Fs struct {
+		Timestamp int64 `json:"timestamp"`
+		Total     struct {
+			Total            string `json:"total"`
+			TotalInBytes     int64  `json:"total_in_bytes"`
+			Free             string `json:"free"`
+			FreeInBytes      int64  `json:"free_in_bytes"`
+			Available        string `json:"available"`
+			AvailableInBytes int64  `json:"available_in_bytes"`
+		} `json:"total"`
+	} `json:"fs"`
 }
 
 func GetCredentials(clusterConfig *config.ClusterConfig, defaultCredentials *Credentials) (*Credentials, error) {
