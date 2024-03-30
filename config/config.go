@@ -4,6 +4,7 @@ import (
 	"esmon/constants"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -94,6 +95,12 @@ func Load(configFile string) (*Config, error) {
 	if err := v.Unmarshal(&config); err != nil {
 		return nil, err
 	}
+
+    if(len(config.Clusters) > 0) {
+        sort.Slice(config.Clusters, func(i, j int) bool {
+            return config.Clusters[i].Alias < config.Clusters[j].Alias
+        })
+    }
 
 	return &config, nil
 

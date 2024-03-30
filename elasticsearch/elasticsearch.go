@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"sort"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -199,6 +200,10 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
 	if err := errorGroup.Wait(); err != nil {
 		return nil, err
 	}
+
+    sort.Slice(clusterData.NodeStats, func(i, j int) bool {
+        return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
+    })
 
 
     index := slices.IndexFunc(
