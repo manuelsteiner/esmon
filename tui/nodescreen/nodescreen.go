@@ -15,6 +15,7 @@ var (
 	nodeTableColumns []table.Column = []table.Column{
 		{Title: "Name", Width: 20},
 		{Title: "Transport", Width: 20},
+		{Title: "Shards", Width: 20},
 		{Title: "CPU Usage", Width: 10},
 		{Title: "Load Average", Width: 10},
 		{Title: "MEM Usage", Width: 10},
@@ -92,6 +93,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			nodeTableRows = append(nodeTableRows, table.Row{
 				row.Name,
 				row.TransportAddress,
+				fmt.Sprintf("%d", row.Indices.ShardStats.TotalCount),
 				fmt.Sprintf("%d%%", row.Os.CPU.Percent),
 				fmt.Sprintf("%f", row.Os.CPU.LoadAverage.One5M),
 				strings.ToUpper(row.Os.Mem.Used),
