@@ -353,7 +353,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.clusterData != nil {
 			m.lastRefresh = time.Now()
 
-			m.nodeScreen, cmd = m.nodeScreen.Update(nodescreen.NodeMsg(m.clusterData.NodeStats))
+			m.nodeScreen, cmd = m.nodeScreen.Update(
+                nodescreen.NodeMsg {
+                    Nodes: m.clusterData.NodeStats,
+                    MasterNode: m.clusterData.MasterNode,
+                },
+            )
 			cmds = append(cmds, cmd)
 		} else {
 			m.refreshError = true

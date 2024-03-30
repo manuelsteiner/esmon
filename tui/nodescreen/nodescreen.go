@@ -12,11 +12,13 @@ import (
 )
 
 var (
+    defaultTheme = styles.GetTheme(nil)
+
 	nodeTableColumns []table.Column = []table.Column{
 		{Title: "Name", Width: 20},
 		{Title: "Transport", Width: 20},
 		{Title: "Shards", Width: 20},
-		{Title: "CPU Usage", Width: 10},
+		{Title: "CPU Usage [%]", Width: 10},
 		{Title: "Load Average", Width: 10},
 		{Title: "MEM Usage", Width: 10},
 		{Title: "Free Disk Space", Width: 10},
@@ -25,9 +27,14 @@ var (
 	nodeTableRows []table.Row
 
 	nodeTableStyles = table.DefaultStyles()
+
+    helpStyle = lipgloss.NewStyle().Height(1).Foreground(defaultTheme.ForegroundColorLightMuted)
 )
 
-type NodeMsg []elasticsearch.NodeStats
+type NodeMsg struct {
+    Nodes      []elasticsearch.NodeStats
+    MasterNode *elasticsearch.NodeStats
+}
 
 type Model struct {
 	width  int
@@ -80,6 +87,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.nodeTable.SetHeight(m.height - 3)
 		m.nodeTable.SetColumns(nodeTableColumns)
 
+		helpStyle.Width(m.width - 2)
+
 	case styles.ThemeChangeMsg:
 		var theme = styles.Theme(msg)
 		setStyles(&theme)
@@ -89,13 +98,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case NodeMsg:
 		var nodeTableRows []table.Row
 
-		for _, row := range msg {
+		for _, row := range msg.Nodes {
+            nodeName := row.Name
+            if row.Id == msg.MasterNode.Id {
+                nodeName += "[★]"
+            }
+
 			nodeTableRows = append(nodeTableRows, table.Row{
-				row.Name,
+				nodeName,
 				row.TransportAddress,
 				fmt.Sprintf("%d", row.Indices.ShardStats.TotalCount),
-				fmt.Sprintf("%d%%", row.Os.CPU.Percent),
-				fmt.Sprintf("%f", row.Os.CPU.LoadAverage.One5M),
+				fmt.Sprintf("%d", row.Os.CPU.Percent),
+				fmt.Sprintf("%.2f", row.Os.CPU.LoadAverage.One5M),
 				strings.ToUpper(row.Os.Mem.Used),
 				strings.ToUpper(row.Fs.Total.Free),
 			})
@@ -112,7 +126,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	return m.nodeTable.View()
+	return lipgloss.JoinVertical(
+        lipgloss.Top, 
+        m.nodeTable.View(),
+        helpStyle.Render("[★] Master Node"),
+    )
 }
 
 func setStyles(theme *styles.Theme) {
@@ -121,4 +139,6 @@ func setStyles(theme *styles.Theme) {
 		Foreground(lipgloss.Color(theme.ForegroundColorLight))
 	nodeTableStyles.Selected = nodeTableStyles.Selected.
 		Foreground(lipgloss.Color(theme.ForegroundColorHighlighted))
+
+    helpStyle = helpStyle.Foreground(lipgloss.Color(theme.ForegroundColorLightMuted))
 }

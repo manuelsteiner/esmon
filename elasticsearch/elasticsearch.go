@@ -5,17 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"esmon/config"
+	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 )
 
 const (
-	clusterHealthPath = "/_cluster/health"
-	clusterStatsPath  = "/_cluster/stats"
-	nodeStatsPath     = "/_nodes/stats"
+	clusterHealthPath = "/_cluster/health?human"
+	clusterStatsPath  = "/_cluster/stats?human"
+	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
+    masterNodePath    = "/_nodes/_master/stats/indices,os,fs?human"
 )
 
 type Credentials struct {
@@ -27,6 +30,7 @@ type ClusterData struct {
 	ClusterInfo  ClusterInfo
 	ClusterStats ClusterStats
 	NodeStats    []NodeStats
+    MasterNode *NodeStats
 }
 
 type ClusterInfo struct {
@@ -62,6 +66,7 @@ type ClusterStats struct {
 
 type NodeStats struct {
 	Timestamp        int64    `json:"timestamp"`
+    Id               string
 	Name             string   `json:"name"`
 	TransportAddress string   `json:"transport_address"`
 	Host             string   `json:"host"`
@@ -181,11 +186,34 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
 		return nil
 	})
 
+    var masterNodeId string
+	errorGroup.Go(func() error {
+		masterNodeIdValue, err := fetchMasterNodeId(endpoint, credentials, timeoutSeconds, insecure)
+		if err != nil {
+			return err
+		}
+        masterNodeId = *masterNodeIdValue
+		return nil
+	})
+
 	if err := errorGroup.Wait(); err != nil {
 		return nil, err
-	} else {
-		return &clusterData, nil
 	}
+
+
+    index := slices.IndexFunc(
+        clusterData.NodeStats,
+        func(s NodeStats) bool {
+            return s.Id == masterNodeId
+        })
+
+    if index == -1 {
+        return nil, errors.New(fmt.Sprintf("Unable to find master node with ID %s in node list", masterNodeId))
+    }
+
+    clusterData.MasterNode = &clusterData.NodeStats[index]
+    
+	return &clusterData, nil
 }
 
 func httpClient(timeoutSeconds uint, insecure bool) http.Client {
@@ -287,8 +315,9 @@ func fetchNodeStats(endpoint string, credentials *Credentials, timeoutSeconds ui
 	}
 
 	var nodeStatsArray []NodeStats
-	for _, nodeInfo := range nodeInfos {
+	for id, nodeInfo := range nodeInfos {
 		var nodeStats NodeStats
+        nodeStats.Id = id
 		if err = json.Unmarshal(nodeInfo, &nodeStats); err != nil {
 			return nil, err
 		}
@@ -296,4 +325,48 @@ func fetchNodeStats(endpoint string, credentials *Credentials, timeoutSeconds ui
 	}
 
 	return &nodeStatsArray, nil
+}
+
+func fetchMasterNodeId(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*string, error) {
+	httpClient := httpClient(timeoutSeconds, insecure)
+
+	req, err := http.NewRequest("GET", endpoint+masterNodePath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawMap map[string]json.RawMessage
+	if err = json.Unmarshal(body, &rawMap); err != nil {
+		return nil, err
+	}
+
+	var nodeInfos map[string]json.RawMessage
+	if err = json.Unmarshal(rawMap["nodes"], &nodeInfos); err != nil {
+		return nil, err
+	}
+
+    var masterNodeId string
+	for id := range nodeInfos {
+        masterNodeId = id 
+	}
+
+    if masterNodeId == "" {
+        return nil, errors.New("Could not determine master node ID")
+    }
+
+
+    return &masterNodeId, nil
 }
