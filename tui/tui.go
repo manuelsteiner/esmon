@@ -486,10 +486,10 @@ func (m mainModel) View() string {
 		BorderLeft(false).
 		BorderColumn(false).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			switch {
-			case col == 0:
+			switch col {
+			case 0:
 				return kvTableKeyStyle
-			case col == 1:
+			case 1:
 				if row == 2 && m.clusterData != nil {
 					switch {
 					case m.clusterData.ClusterInfo.Status == "green":
@@ -545,11 +545,19 @@ func (m mainModel) View() string {
 		BorderLeft(false).
 		BorderColumn(false).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			switch {
-			case col == 0:
-				return kvTableKeyStyle
-			case col == 1:
-				return kvTableValueStyle
+			switch col {
+			case 0:
+                if row == int(m.screen) {
+                    return kvTableKeyStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
+                } else {
+				    return kvTableKeyStyle
+                }
+			case 1:
+                if row == int(m.screen) {
+                    return kvTableValueStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
+                } else {
+				    return kvTableValueStyle
+                }
 			default:
 				return lipgloss.NewStyle()
 			}
