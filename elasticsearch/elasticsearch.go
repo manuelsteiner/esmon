@@ -1,6 +1,7 @@
 package elasticsearch
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -155,13 +156,13 @@ func GetCredentials(clusterConfig *config.ClusterConfig, defaultCredentials *Cre
 	return &credentials, nil
 }
 
-func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterData, error) {
+func FetchData(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterData, error) {
 	clusterData := ClusterData{}
 
 	errorGroup := errgroup.Group{}
 
 	errorGroup.Go(func() error {
-		clusterInfo, err := fetchClusterInfo(endpoint, credentials, timeoutSeconds, insecure)
+		clusterInfo, err := fetchClusterInfo(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -170,7 +171,7 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
 	})
 
 	errorGroup.Go(func() error {
-		clusterStats, err := fetchClusterStats(endpoint, credentials, timeoutSeconds, insecure)
+		clusterStats, err := fetchClusterStats(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -179,7 +180,7 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
 	})
 
 	errorGroup.Go(func() error {
-		nodeStats, err := fetchNodeStats(endpoint, credentials, timeoutSeconds, insecure)
+		nodeStats, err := fetchNodeStats(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -189,7 +190,7 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
 
     var masterNodeId string
 	errorGroup.Go(func() error {
-		masterNodeIdValue, err := fetchMasterNodeId(endpoint, credentials, timeoutSeconds, insecure)
+		masterNodeIdValue, err := fetchMasterNodeId(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
@@ -204,7 +205,6 @@ func FetchData(endpoint string, credentials *Credentials, timeoutSeconds uint, i
     sort.Slice(clusterData.NodeStats, func(i, j int) bool {
         return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
     })
-
 
     index := slices.IndexFunc(
         clusterData.NodeStats,
@@ -229,10 +229,10 @@ func httpClient(timeoutSeconds uint, insecure bool) http.Client {
 	return httpClient
 }
 
-func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterInfo, error) {
+func fetchClusterInfo(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterInfo, error) {
 	httpClient := httpClient(timeoutSeconds, insecure)
 
-	req, err := http.NewRequest("GET", endpoint+clusterHealthPath, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+clusterHealthPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -259,10 +259,10 @@ func fetchClusterInfo(endpoint string, credentials *Credentials, timeoutSeconds 
 	return &clusterInfo, nil
 }
 
-func fetchClusterStats(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterStats, error) {
+func fetchClusterStats(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*ClusterStats, error) {
 	httpClient := httpClient(timeoutSeconds, insecure)
 
-	req, err := http.NewRequest("GET", endpoint+clusterStatsPath, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+clusterStatsPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -288,10 +288,10 @@ func fetchClusterStats(endpoint string, credentials *Credentials, timeoutSeconds
 	return &clusterStats, nil
 }
 
-func fetchNodeStats(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]NodeStats, error) {
+func fetchNodeStats(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]NodeStats, error) {
 	httpClient := httpClient(timeoutSeconds, insecure)
 
-	req, err := http.NewRequest("GET", endpoint+nodeStatsPath, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+nodeStatsPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -332,10 +332,10 @@ func fetchNodeStats(endpoint string, credentials *Credentials, timeoutSeconds ui
 	return &nodeStatsArray, nil
 }
 
-func fetchMasterNodeId(endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*string, error) {
+func fetchMasterNodeId(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*string, error) {
 	httpClient := httpClient(timeoutSeconds, insecure)
 
-	req, err := http.NewRequest("GET", endpoint+masterNodePath, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+masterNodePath, nil)
 	if err != nil {
 		return nil, err
 	}

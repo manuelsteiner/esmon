@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"esmon/arguments"
 	"esmon/config"
 	"esmon/constants"
@@ -96,6 +97,9 @@ var (
 		&defaultKeyMap.indexOverview,
 		&defaultKeyMap.clusters,
 	}
+
+    refreshContextCancelFunc context.CancelFunc
+    refreshTickContextCancelFunc context.CancelFunc
 )
 
 type errMsg error
@@ -272,6 +276,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
 			cmds = append(cmds, changeAutorefreshInterval(m.refreshIntervalSeconds))
 		case key.Matches(msg, defaultKeyMap.quit):
+            if refreshContextCancelFunc != nil {
+                refreshContextCancelFunc()
+            }
+            if refreshTickContextCancelFunc != nil {
+                refreshTickContextCancelFunc()
+            }
 			cmds = append(cmds, tea.Quit)
 		default:
 			m.nodeScreen, cmd = m.nodeScreen.Update(msg)
@@ -681,7 +691,10 @@ func initProgram() tea.Cmd {
 			}
 
 			if err == nil {
+                var ctx context.Context
+                ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
 				clusterData, err = elasticsearch.FetchData(
+                    ctx,
 					currentCluster.Endpoint,
 					credentials,
 					conf.General.RefreshInterval,
@@ -727,7 +740,16 @@ func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elast
 			return errMsg(err)
 		}
 
-		clusterData, err := elasticsearch.FetchData(currentCluster.Endpoint, credentials, httpConfig.Timeout, httpConfig.Insecure)
+        var ctx context.Context
+        ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
+
+		clusterData, err := elasticsearch.FetchData(
+            ctx,
+            currentCluster.Endpoint,
+            credentials,
+            httpConfig.Timeout,
+            httpConfig.Insecure,
+        )
 		if err != nil {
 			return refreshErrorMsg(err)
 		}
