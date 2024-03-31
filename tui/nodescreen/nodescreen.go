@@ -15,7 +15,7 @@ var (
 	defaultTheme = styles.GetTheme(nil)
 
 	nodeTableColumns []table.Column = []table.Column{
-		{Title: "Name", Width: 20},
+		{Title: "↑Name", Width: 20},
 		{Title: "Transport", Width: 20},
 		{Title: "Shards", Width: 20},
 		{Title: "CPU Usage [%]", Width: 10},

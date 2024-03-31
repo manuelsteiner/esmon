@@ -19,6 +19,7 @@ import (
 const (
 	clusterHealthPath = "/_cluster/health?human"
 	clusterStatsPath  = "/_cluster/stats?human"
+	recoveryPath      = "/_recovery?active_only&human"
 	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
 	masterNodePath    = "/_nodes/_master/stats/indices,os,fs?human"
 )
@@ -31,6 +32,7 @@ type Credentials struct {
 type ClusterData struct {
 	ClusterInfo  ClusterInfo
 	ClusterStats ClusterStats
+    Recoveries     []Recovery
 	NodeStats    []NodeStats
 	MasterNode   *NodeStats
 }
@@ -66,9 +68,106 @@ type ClusterStats struct {
 	} `json:"indices"`
 }
 
+type Recovery struct {
+	ID                int    `json:"id"`
+	Type              string `json:"type"`
+	Stage             string `json:"stage"`
+	Primary           bool   `json:"primary"`
+	StartTime         string `json:"start_time"`
+	StartTimeInMillis int64  `json:"start_time_in_millis"`
+	StopTime          string `json:"stop_time"`
+	StopTimeInMillis  int    `json:"stop_time_in_millis"`
+	TotalTime         string `json:"total_time"`
+	TotalTimeInMillis int    `json:"total_time_in_millis"`
+    Source            RecoveryPeer `json:"source"`
+    Target            RecoveryPeer `json:"target"`
+    Shard             string // manually added while fetching
+	Index struct {
+        Name string // manually added while fetching
+		Size struct {
+			Total                        string `json:"total"`
+			TotalInBytes                 int    `json:"total_in_bytes"`
+			Reused                       string `json:"reused"`
+			ReusedInBytes                int    `json:"reused_in_bytes"`
+			Recovered                    string `json:"recovered"`
+			RecoveredInBytes             int    `json:"recovered_in_bytes"`
+			RecoveredFromSnapshot        string `json:"recovered_from_snapshot"`
+			RecoveredFromSnapshotInBytes int    `json:"recovered_from_snapshot_in_bytes"`
+			Percent                      string `json:"percent"`
+		} `json:"size"`
+		Files struct {
+			Total     int    `json:"total"`
+			Reused    int    `json:"reused"`
+			Recovered int    `json:"recovered"`
+			Percent   string `json:"percent"`
+		} `json:"files"`
+		TotalTime                  string `json:"total_time"`
+		TotalTimeInMillis          int    `json:"total_time_in_millis"`
+		SourceThrottleTime         string `json:"source_throttle_time"`
+		SourceThrottleTimeInMillis int    `json:"source_throttle_time_in_millis"`
+		TargetThrottleTime         string `json:"target_throttle_time"`
+		TargetThrottleTimeInMillis int    `json:"target_throttle_time_in_millis"`
+	} `json:"index"`
+}
+
+type RecoveryPeerInterface interface {
+    Type() string
+    PeerName() string
+}
+
+type RecoveryPeer struct {
+    Peer RecoveryPeerInterface
+}
+
+func (p *RecoveryPeer) UnmarshalJSON(data []byte) error {
+
+    var nodePeer NodePeer 
+    if err := json.Unmarshal(data, &nodePeer); err == nil {
+        p.Peer = nodePeer
+        return nil
+    } 
+
+    var repositoryPeer NodePeer 
+    if err := json.Unmarshal(data, &nodePeer); err == nil {
+        p.Peer = repositoryPeer
+        return nil
+    } 
+ 
+    return errors.New("Can not unmarshl RecoveryPeer")
+}
+
+type NodePeer struct {
+	ID               string `json:"id"`
+	Host             string `json:"host"`
+	TransportAddress string `json:"transport_address"`
+	IP               string `json:"ip"`
+	Name             string `json:"name"`
+}
+
+func (n NodePeer) Type() string {
+    return "Node"
+}
+
+func (n NodePeer) PeerName() string {
+    return n.Name
+}
+
+type RepositoryPeer struct {
+	Repository  string `json:"repository"`
+	Snapshot    string `json:"snapshot"`
+}
+
+func (n RepositoryPeer) Type() string {
+    return "Repository"
+}
+
+func (n RepositoryPeer) PeerName() string {
+    return n.Repository
+}
+
 type NodeStats struct {
-	Timestamp        int64 `json:"timestamp"`
-	Id               string
+	Timestamp        int64    `json:"timestamp"`
+    Id               string    // manually added when fetching
 	Name             string   `json:"name"`
 	TransportAddress string   `json:"transport_address"`
 	Host             string   `json:"host"`
@@ -180,6 +279,15 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 	})
 
 	errorGroup.Go(func() error {
+		recoveries, err := fetchRecoveries(ctx, endpoint, credentials, timeoutSeconds, insecure)
+		if err != nil {
+			return err
+		}
+		clusterData.Recoveries = *recoveries
+		return nil
+	})
+
+	errorGroup.Go(func() error {
 		nodeStats, err := fetchNodeStats(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
@@ -201,6 +309,10 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 	if err := errorGroup.Wait(); err != nil {
 		return nil, err
 	}
+
+	sort.Slice(clusterData.Recoveries, func(i, j int) bool {
+		return clusterData.Recoveries[i].TotalTimeInMillis > clusterData.Recoveries[j].TotalTimeInMillis
+	})
 
 	sort.Slice(clusterData.NodeStats, func(i, j int) bool {
 		return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
@@ -286,6 +398,56 @@ func fetchClusterStats(ctx context.Context, endpoint string, credentials *Creden
 	}
 
 	return &clusterStats, nil
+}
+
+func fetchRecoveries(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]Recovery, error) {
+	httpClient := httpClient(timeoutSeconds, insecure)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+recoveryPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawMap map[string]json.RawMessage
+	if err = json.Unmarshal(body, &rawMap); err != nil {
+		return nil, err
+	}
+
+    var recoveries []Recovery
+    for index, indexMap := range rawMap {
+	    var shardMap map[string]json.RawMessage
+        if err = json.Unmarshal(indexMap, &shardMap); err != nil {
+            return nil, err
+        }
+
+        var indexRecoveries []Recovery
+        if err = json.Unmarshal(shardMap["shards"], &indexRecoveries); err != nil {
+            return nil, err
+        }
+
+        for _, recovery := range indexRecoveries {
+            recovery.Index.Name = index
+
+            if recovery.Type == "PEER" {
+                recoveries = append(recoveries, recovery)
+            }
+        }
+    }
+
+	return &recoveries, nil
 }
 
 func fetchNodeStats(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]NodeStats, error) {

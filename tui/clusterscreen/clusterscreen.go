@@ -14,7 +14,7 @@ import (
 
 var (
 	clusterTableColumns []table.Column = []table.Column{
-		{Title: "Alias", Width: 20},
+		{Title: "↑Alias", Width: 20},
 		{Title: "Endpoint", Width: 20},
 		{Title: "Username", Width: 20},
 		{Title: "Password", Width: 20},
