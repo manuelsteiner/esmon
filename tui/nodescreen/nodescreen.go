@@ -12,7 +12,7 @@ import (
 )
 
 var (
-    defaultTheme = styles.GetTheme(nil)
+	defaultTheme = styles.GetTheme(nil)
 
 	nodeTableColumns []table.Column = []table.Column{
 		{Title: "Name", Width: 20},
@@ -28,12 +28,12 @@ var (
 
 	nodeTableStyles = table.DefaultStyles()
 
-    helpStyle = lipgloss.NewStyle().Height(1).Foreground(defaultTheme.ForegroundColorLightMuted)
+	helpStyle = lipgloss.NewStyle().Height(1).Foreground(defaultTheme.ForegroundColorLightMuted)
 )
 
 type NodeMsg struct {
-    Nodes      []elasticsearch.NodeStats
-    MasterNode *elasticsearch.NodeStats
+	Nodes      []elasticsearch.NodeStats
+	MasterNode *elasticsearch.NodeStats
 }
 
 type Model struct {
@@ -99,10 +99,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		var nodeTableRows []table.Row
 
 		for _, row := range msg.Nodes {
-            nodeName := row.Name
-            if row.Id == msg.MasterNode.Id {
-                nodeName += "[★]"
-            }
+			nodeName := row.Name
+			if row.Id == msg.MasterNode.Id {
+				nodeName += "[★]"
+			}
 
 			nodeTableRows = append(nodeTableRows, table.Row{
 				nodeName,
@@ -127,10 +127,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	return lipgloss.JoinVertical(
-        lipgloss.Top, 
-        m.nodeTable.View(),
-        helpStyle.Render("[★] Master Node"),
-    )
+		lipgloss.Top,
+		m.nodeTable.View(),
+		helpStyle.Render("[★] Master Node"),
+	)
 }
 
 func setStyles(theme *styles.Theme) {
@@ -140,5 +140,5 @@ func setStyles(theme *styles.Theme) {
 	nodeTableStyles.Selected = nodeTableStyles.Selected.
 		Foreground(lipgloss.Color(theme.ForegroundColorHighlighted))
 
-    helpStyle = helpStyle.Foreground(lipgloss.Color(theme.ForegroundColorLightMuted))
+	helpStyle = helpStyle.Foreground(lipgloss.Color(theme.ForegroundColorLightMuted))
 }

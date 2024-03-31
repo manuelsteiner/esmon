@@ -20,7 +20,7 @@ const (
 	clusterHealthPath = "/_cluster/health?human"
 	clusterStatsPath  = "/_cluster/stats?human"
 	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
-    masterNodePath    = "/_nodes/_master/stats/indices,os,fs?human"
+	masterNodePath    = "/_nodes/_master/stats/indices,os,fs?human"
 )
 
 type Credentials struct {
@@ -32,7 +32,7 @@ type ClusterData struct {
 	ClusterInfo  ClusterInfo
 	ClusterStats ClusterStats
 	NodeStats    []NodeStats
-    MasterNode *NodeStats
+	MasterNode   *NodeStats
 }
 
 type ClusterInfo struct {
@@ -67,8 +67,8 @@ type ClusterStats struct {
 }
 
 type NodeStats struct {
-	Timestamp        int64    `json:"timestamp"`
-    Id               string
+	Timestamp        int64 `json:"timestamp"`
+	Id               string
 	Name             string   `json:"name"`
 	TransportAddress string   `json:"transport_address"`
 	Host             string   `json:"host"`
@@ -188,13 +188,13 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 		return nil
 	})
 
-    var masterNodeId string
+	var masterNodeId string
 	errorGroup.Go(func() error {
 		masterNodeIdValue, err := fetchMasterNodeId(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
 		}
-        masterNodeId = *masterNodeIdValue
+		masterNodeId = *masterNodeIdValue
 		return nil
 	})
 
@@ -202,22 +202,22 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 		return nil, err
 	}
 
-    sort.Slice(clusterData.NodeStats, func(i, j int) bool {
-        return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
-    })
+	sort.Slice(clusterData.NodeStats, func(i, j int) bool {
+		return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
+	})
 
-    index := slices.IndexFunc(
-        clusterData.NodeStats,
-        func(s NodeStats) bool {
-            return s.Id == masterNodeId
-        })
+	index := slices.IndexFunc(
+		clusterData.NodeStats,
+		func(s NodeStats) bool {
+			return s.Id == masterNodeId
+		})
 
-    if index == -1 {
-        return nil, errors.New(fmt.Sprintf("Unable to find master node with ID %s in node list", masterNodeId))
-    }
+	if index == -1 {
+		return nil, errors.New(fmt.Sprintf("Unable to find master node with ID %s in node list", masterNodeId))
+	}
 
-    clusterData.MasterNode = &clusterData.NodeStats[index]
-    
+	clusterData.MasterNode = &clusterData.NodeStats[index]
+
 	return &clusterData, nil
 }
 
@@ -322,7 +322,7 @@ func fetchNodeStats(ctx context.Context, endpoint string, credentials *Credentia
 	var nodeStatsArray []NodeStats
 	for id, nodeInfo := range nodeInfos {
 		var nodeStats NodeStats
-        nodeStats.Id = id
+		nodeStats.Id = id
 		if err = json.Unmarshal(nodeInfo, &nodeStats); err != nil {
 			return nil, err
 		}
@@ -363,15 +363,14 @@ func fetchMasterNodeId(ctx context.Context, endpoint string, credentials *Creden
 		return nil, err
 	}
 
-    var masterNodeId string
+	var masterNodeId string
 	for id := range nodeInfos {
-        masterNodeId = id 
+		masterNodeId = id
 	}
 
-    if masterNodeId == "" {
-        return nil, errors.New("Could not determine master node ID")
-    }
+	if masterNodeId == "" {
+		return nil, errors.New("Could not determine master node ID")
+	}
 
-
-    return &masterNodeId, nil
+	return &masterNodeId, nil
 }

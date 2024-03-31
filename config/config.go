@@ -96,11 +96,11 @@ func Load(configFile string) (*Config, error) {
 		return nil, err
 	}
 
-    if(len(config.Clusters) > 0) {
-        sort.Slice(config.Clusters, func(i, j int) bool {
-            return config.Clusters[i].Alias < config.Clusters[j].Alias
-        })
-    }
+	if len(config.Clusters) > 0 {
+		sort.Slice(config.Clusters, func(i, j int) bool {
+			return config.Clusters[i].Alias < config.Clusters[j].Alias
+		})
+	}
 
 	return &config, nil
 

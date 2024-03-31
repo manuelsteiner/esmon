@@ -98,8 +98,8 @@ var (
 		&defaultKeyMap.clusters,
 	}
 
-    refreshContextCancelFunc context.CancelFunc
-    refreshTickContextCancelFunc context.CancelFunc
+	refreshContextCancelFunc     context.CancelFunc
+	refreshTickContextCancelFunc context.CancelFunc
 )
 
 type errMsg error
@@ -276,12 +276,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
 			cmds = append(cmds, changeAutorefreshInterval(m.refreshIntervalSeconds))
 		case key.Matches(msg, defaultKeyMap.quit):
-            if refreshContextCancelFunc != nil {
-                refreshContextCancelFunc()
-            }
-            if refreshTickContextCancelFunc != nil {
-                refreshTickContextCancelFunc()
-            }
+			if refreshContextCancelFunc != nil {
+				refreshContextCancelFunc()
+			}
+			if refreshTickContextCancelFunc != nil {
+				refreshTickContextCancelFunc()
+			}
 			cmds = append(cmds, tea.Quit)
 		default:
 			m.nodeScreen, cmd = m.nodeScreen.Update(msg)
@@ -296,7 +296,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshError = true
 
 	case autorefreshIntervalChangeMsg:
-		lastRefreshIntervalSeconds := m.refreshIntervalSeconds
+		if refreshTickContextCancelFunc != nil {
+			refreshTickContextCancelFunc()
+		}
+
 		m.refreshIntervalSeconds = uint(msg)
 
 		statusRefreshInfoWidth := statusRefreshInfoWidth(m.refreshIntervalSeconds)
@@ -306,7 +309,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		statusRefreshIndicatorRedStyle.Width(m.width - statusRefreshInfoWidth)
 		statusRefreshIndicatorErrorStyle.Width(m.width - statusRefreshInfoWidth)
 
-		if lastRefreshIntervalSeconds == 0 && m.refreshIntervalSeconds > 0 {
+		if m.refreshIntervalSeconds > 0 {
 			cmds = append(cmds, autorefreshTick(m.refreshIntervalSeconds))
 		}
 
@@ -364,11 +367,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastRefresh = time.Now()
 
 			m.nodeScreen, cmd = m.nodeScreen.Update(
-                nodescreen.NodeMsg {
-                    Nodes: m.clusterData.NodeStats,
-                    MasterNode: m.clusterData.MasterNode,
-                },
-            )
+				nodescreen.NodeMsg{
+					Nodes:      m.clusterData.NodeStats,
+					MasterNode: m.clusterData.MasterNode,
+				},
+			)
 			cmds = append(cmds, cmd)
 		} else {
 			m.refreshError = true
@@ -396,6 +399,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case clusterscreen.ClusterChangeMsg:
+		if refreshContextCancelFunc != nil {
+			refreshContextCancelFunc()
+		}
+		if refreshTickContextCancelFunc != nil {
+			refreshTickContextCancelFunc()
+		}
+
 		index := slices.IndexFunc(
 			m.clusterConfig,
 			func(c config.ClusterConfig) bool {
@@ -628,9 +638,19 @@ func statusRefreshInfoWidth(refreshIntervalSeconds uint) int {
 }
 
 func autorefreshTick(intervalSeconds uint) tea.Cmd {
-	return tea.Tick(time.Duration(intervalSeconds)*time.Second, func(t time.Time) tea.Msg {
-		return autorefreshTickMsg(t)
-	})
+	return func() tea.Msg {
+		var ctx context.Context
+		ctx, refreshTickContextCancelFunc = context.WithCancel(context.Background())
+
+		timer := time.NewTimer(time.Duration(intervalSeconds) * time.Second)
+
+		select {
+		case t := <-timer.C:
+			return autorefreshTickMsg(t)
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }
 
 func initProgram() tea.Cmd {
@@ -691,10 +711,10 @@ func initProgram() tea.Cmd {
 			}
 
 			if err == nil {
-                var ctx context.Context
-                ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
+				var ctx context.Context
+				ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
 				clusterData, err = elasticsearch.FetchData(
-                    ctx,
+					ctx,
 					currentCluster.Endpoint,
 					credentials,
 					conf.General.RefreshInterval,
@@ -740,16 +760,16 @@ func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elast
 			return errMsg(err)
 		}
 
-        var ctx context.Context
-        ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
+		var ctx context.Context
+		ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
 
 		clusterData, err := elasticsearch.FetchData(
-            ctx,
-            currentCluster.Endpoint,
-            credentials,
-            httpConfig.Timeout,
-            httpConfig.Insecure,
-        )
+			ctx,
+			currentCluster.Endpoint,
+			credentials,
+			httpConfig.Timeout,
+			httpConfig.Insecure,
+		)
 		if err != nil {
 			return refreshErrorMsg(err)
 		}
