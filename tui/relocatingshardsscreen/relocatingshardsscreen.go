@@ -131,7 +131,7 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
 		m.shardTable.View(),
-		helpStyle.Render("[P] Primary Shard • [R] Replica Shard"),
+		helpStyle.Render("[P] Primary shard • [R] Replica shard"),
 	)
 }
 

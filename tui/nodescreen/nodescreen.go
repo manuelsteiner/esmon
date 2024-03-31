@@ -18,10 +18,10 @@ var (
 		{Title: "↑Name", Width: 20},
 		{Title: "Transport", Width: 20},
 		{Title: "Shards", Width: 20},
-		{Title: "CPU Usage [%]", Width: 10},
-		{Title: "Load Average", Width: 10},
-		{Title: "MEM Usage", Width: 10},
-		{Title: "Free Disk Space", Width: 10},
+		{Title: "CPU usage [%]", Width: 10},
+		{Title: "Load average", Width: 10},
+		{Title: "MEM usage", Width: 10},
+		{Title: "Free disk space", Width: 10},
 	}
 
 	nodeTableRows []table.Row
@@ -129,7 +129,7 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
 		m.nodeTable.View(),
-		helpStyle.Render("[★] Master Node"),
+		helpStyle.Render("[★] Master node"),
 	)
 }
 
