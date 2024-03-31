@@ -52,6 +52,7 @@ type ClusterInfo struct {
 	NumberOfPendingTasks        int     `json:"number_of_pending_tasks"`
 	NumberOfInFlightFetch       int     `json:"number_of_in_flight_fetch"`
 	TaskMaxWaitingInQueueMillis int     `json:"task_max_waiting_in_queue_millis"`
+	ActiveShardsPercent         string  `json:"active_shards_percent"`
 	ActiveShardsPercentAsNumber float64 `json:"active_shards_percent_as_number"`
 }
 

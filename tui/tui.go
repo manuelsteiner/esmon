@@ -97,6 +97,7 @@ var (
 		&defaultKeyMap.nodeOverview,
 		&defaultKeyMap.indexOverview,
 		&defaultKeyMap.clusters,
+		&defaultKeyMap.quit,
 	}
 
     refreshContextCancelFunc context.CancelFunc
@@ -225,7 +226,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		overviewStyle.Width(m.width)
 		infoStyle.Width(m.width - logoWidth)
 		contentStyle.Width(m.width - 2)
-		contentStyle.Height(m.height - 10)
+		contentStyle.Height(m.height -  styles.OverviewHeight - 5)
 		statusStyle.Width(m.width)
 		statusGreenStyle.Width(m.width)
 		statusYellowStyle.Width(m.width)
@@ -240,17 +241,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(tea.WindowSizeMsg{
-			Width: m.width - 2, Height: m.height - 10,
+			Width: m.width - 2, Height: m.height - styles.OverviewHeight - 5,
 		})
 		cmds = append(cmds, cmd)
 
 		m.nodeScreen, cmd = m.nodeScreen.Update(tea.WindowSizeMsg{
-			Width: m.width - 2, Height: m.height - 10,
+			Width: m.width - 2, Height: m.height - styles.OverviewHeight - 5,
 		})
 		cmds = append(cmds, cmd)
 
 		m.clusterScreen, cmd = m.clusterScreen.Update(tea.WindowSizeMsg{
-			Width: m.width - 2, Height: m.height - 10,
+			Width: m.width - 2, Height: m.height - styles.OverviewHeight - 5,
 		})
 		cmds = append(cmds, cmd)
 
@@ -526,12 +527,17 @@ func (m mainModel) View() string {
 	if m.clusterData != nil {
 		clusterRelocatingShards = fmt.Sprintf("%d", m.clusterData.ClusterInfo.RelocatingShards)
 	}
+	clusterActiveShardsPercent := ""
+	if m.clusterData != nil {
+		clusterActiveShardsPercent =  m.clusterData.ClusterInfo.ActiveShardsPercent
+	}
 
 	clusterInfoTable.Row("Cluster:", clusterName)
 	clusterInfoTable.Row("Status:", clusterStatus)
 	clusterInfoTable.Row("Nodes:", clusterNodes)
 	clusterInfoTable.Row("Data:", clusterSize)
 	clusterInfoTable.Row("Relocating shards:", clusterRelocatingShards)
+	clusterInfoTable.Row("Active shards:", clusterActiveShardsPercent)
 
 	var commands [][]string
 	for _, keyBinding := range mainMenuKeyMap {

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	OverviewHeight = 5
+	OverviewHeight = 6
 
 	logoColor = "15"
 
