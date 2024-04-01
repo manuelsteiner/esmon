@@ -8,6 +8,7 @@ import (
 	"esmon/constants"
 	"esmon/elasticsearch"
 	"esmon/tui/clusterscreen"
+	"esmon/tui/indexscreen"
 	"esmon/tui/loadingscreen"
 	"esmon/tui/nodescreen"
 	"esmon/tui/relocatingshardsscreen"
@@ -153,6 +154,7 @@ type mainModel struct {
 	loadingScreen loadingscreen.Model
 	relocatingShardsScreen relocatingshardsscreen.Model
 	nodeScreen    nodescreen.Model
+	indexScreen    indexscreen.Model
 	clusterScreen clusterscreen.Model
 
 	screen screen
@@ -182,6 +184,7 @@ func NewMainModel() mainModel {
 	m.loadingScreen = loadingscreen.New(&defaultTheme)
 	m.relocatingShardsScreen = relocatingshardsscreen.New(&defaultTheme)
 	m.nodeScreen = nodescreen.New(&defaultTheme)
+	m.indexScreen = indexscreen.New(&defaultTheme)
 	m.clusterScreen = clusterscreen.New(&defaultTheme)
 
 	m.screen = loading
@@ -204,6 +207,7 @@ func (m mainModel) Init() tea.Cmd {
 	cmds = append(cmds, m.loadingScreen.Init())
 	cmds = append(cmds, m.relocatingShardsScreen.Init())
 	cmds = append(cmds, m.nodeScreen.Init())
+	cmds = append(cmds, m.indexScreen.Init())
 	cmds = append(cmds, m.clusterScreen.Init())
 	cmds = append(cmds, m.refreshSpinner.Tick)
 
@@ -247,6 +251,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		m.nodeScreen, cmd = m.nodeScreen.Update(tea.WindowSizeMsg{
+			Width: m.width - 2, Height: m.height - styles.OverviewHeight - 5,
+		})
+		cmds = append(cmds, cmd)
+
+		m.indexScreen, cmd = m.indexScreen.Update(tea.WindowSizeMsg{
 			Width: m.width - 2, Height: m.height - styles.OverviewHeight - 5,
 		})
 		cmds = append(cmds, cmd)
@@ -301,6 +310,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			    cmds = append(cmds, cmd)
             case nodeOverview:
 			    m.nodeScreen, cmd = m.nodeScreen.Update(msg)
+			    cmds = append(cmds, cmd)
+            case indexOverview:
+			    m.indexScreen, cmd = m.indexScreen.Update(msg)
 			    cmds = append(cmds, cmd)
             case clusters:
 			    m.clusterScreen, cmd = m.clusterScreen.Update(msg)
@@ -359,6 +371,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.nodeScreen, cmd = m.nodeScreen.Update(styles.ThemeChangeMsg(m.theme))
 		cmds = append(cmds, cmd)
 
+		m.indexScreen, cmd = m.indexScreen.Update(styles.ThemeChangeMsg(m.theme))
+		cmds = append(cmds, cmd)
+
 		m.clusterScreen, cmd = m.clusterScreen.Update(styles.ThemeChangeMsg(m.theme))
 		cmds = append(cmds, cmd)
 
@@ -389,12 +404,18 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(
                 relocatingshardsscreen.ShardMsg(m.clusterData.Recoveries),
             )
+			cmds = append(cmds, cmd)
 
 			m.nodeScreen, cmd = m.nodeScreen.Update(
                 nodescreen.NodeMsg {
                     Nodes: m.clusterData.NodeStats,
                     MasterNode: m.clusterData.MasterNode,
                 },
+            )
+			cmds = append(cmds, cmd)
+
+            m.indexScreen, cmd = m.indexScreen.Update(
+                indexscreen.IndexMsg(m.clusterData.IndexStats),
             )
 			cmds = append(cmds, cmd)
 		} else {
@@ -579,7 +600,7 @@ func (m mainModel) View() string {
 	case m.screen == nodeOverview:
 		contentRender = m.nodeScreen.View()
 	case m.screen == indexOverview:
-		contentRender = "Index Overview"
+		contentRender = m.indexScreen.View()
 	case m.screen == clusters:
 		contentRender = m.clusterScreen.View()
 	}

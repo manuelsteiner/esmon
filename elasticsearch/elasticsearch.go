@@ -21,6 +21,7 @@ const (
 	clusterStatsPath  = "/_cluster/stats?human"
 	recoveryPath      = "/_recovery?active_only&human"
 	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
+	indexStatsPath    = "/_stats?human"
 	masterNodePath    = "/_nodes/_master/stats/indices,os,fs?human"
 )
 
@@ -34,6 +35,7 @@ type ClusterData struct {
 	ClusterStats ClusterStats
     Recoveries     []Recovery
 	NodeStats    []NodeStats
+	IndexStats    []IndexStats
 	MasterNode   *NodeStats
 }
 
@@ -168,7 +170,7 @@ func (n RepositoryPeer) PeerName() string {
 
 type NodeStats struct {
 	Timestamp        int64    `json:"timestamp"`
-    Id               string    // manually added when fetching
+    Id               string    // manually added while fetching
 	Name             string   `json:"name"`
 	TransportAddress string   `json:"transport_address"`
 	Host             string   `json:"host"`
@@ -235,6 +237,47 @@ type NodeStats struct {
 	} `json:"fs"`
 }
 
+type IndexStats struct {
+	Name      string // manually added while fetching
+	UUID      string `json:"uuid"`
+	Health    string `json:"health"`
+	Status    string `json:"status"`
+	Primaries struct {
+		Docs struct {
+			Count   int `json:"count"`
+			Deleted int `json:"deleted"`
+		} `json:"docs"`
+		ShardStats struct {
+			TotalCount int `json:"total_count"`
+		} `json:"shard_stats"`
+		Store struct {
+			Size                    string `json:"size"`
+			SizeInBytes             int    `json:"size_in_bytes"`
+			TotalDataSetSize        string `json:"total_data_set_size"`
+			TotalDataSetSizeInBytes int    `json:"total_data_set_size_in_bytes"`
+			Reserved                string `json:"reserved"`
+			ReservedInBytes         int    `json:"reserved_in_bytes"`
+		} `json:"store"`
+	} `json:"primaries"`
+	Total struct {
+		Docs struct {
+			Count   int `json:"count"`
+			Deleted int `json:"deleted"`
+		} `json:"docs"`
+		ShardStats struct {
+			TotalCount int `json:"total_count"`
+		} `json:"shard_stats"`
+		Store struct {
+			Size                    string `json:"size"`
+			SizeInBytes             int    `json:"size_in_bytes"`
+			TotalDataSetSize        string `json:"total_data_set_size"`
+			TotalDataSetSizeInBytes int    `json:"total_data_set_size_in_bytes"`
+			Reserved                string `json:"reserved"`
+			ReservedInBytes         int    `json:"reserved_in_bytes"`
+		} `json:"store"`
+	} `json:"total"`
+}
+
 func GetCredentials(clusterConfig *config.ClusterConfig, defaultCredentials *Credentials) (*Credentials, error) {
 	credentials := Credentials{
 		Username: defaultCredentials.Username,
@@ -297,6 +340,15 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 		return nil
 	})
 
+	errorGroup.Go(func() error {
+		indexStats, err := fetchIndexStats(ctx, endpoint, credentials, timeoutSeconds, insecure)
+		if err != nil {
+			return err
+		}
+		clusterData.IndexStats = *indexStats
+		return nil
+	})
+
 	var masterNodeId string
 	errorGroup.Go(func() error {
 		masterNodeIdValue, err := fetchMasterNodeId(ctx, endpoint, credentials, timeoutSeconds, insecure)
@@ -317,6 +369,10 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 
 	sort.Slice(clusterData.NodeStats, func(i, j int) bool {
 		return clusterData.NodeStats[i].Name < clusterData.NodeStats[j].Name
+	})
+
+	sort.Slice(clusterData.IndexStats, func(i, j int) bool {
+		return clusterData.IndexStats[i].Total.Store.SizeInBytes > clusterData.IndexStats[j].Total.Store.SizeInBytes
 	})
 
 	index := slices.IndexFunc(
@@ -536,4 +592,48 @@ func fetchMasterNodeId(ctx context.Context, endpoint string, credentials *Creden
 	}
 
 	return &masterNodeId, nil
+}
+
+func fetchIndexStats(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]IndexStats, error) {
+	httpClient := httpClient(timeoutSeconds, insecure)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+indexStatsPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawMap map[string]json.RawMessage
+	if err = json.Unmarshal(body, &rawMap); err != nil {
+		return nil, err
+	}
+
+	var indexInfos map[string]json.RawMessage
+	if err = json.Unmarshal(rawMap["indices"], &indexInfos); err != nil {
+		return nil, err
+	}
+
+	var indexStatsArray []IndexStats
+	for name, indexInfo := range indexInfos {
+		var indexStats IndexStats
+		indexStats.Name = name
+		if err = json.Unmarshal(indexInfo, &indexStats); err != nil {
+			return nil, err
+		}
+		indexStatsArray = append(indexStatsArray, indexStats)
+	}
+
+	return &indexStatsArray, nil
 }
