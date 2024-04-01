@@ -19,6 +19,7 @@ import (
 const (
 	clusterHealthPath = "/_cluster/health?human"
 	clusterStatsPath  = "/_cluster/stats?human"
+    shardStoresPath   = "/_shard_stores?status=all&human"
 	recoveryPath      = "/_recovery?active_only&human"
 	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
 	indexStatsPath    = "/_stats?human"
@@ -33,6 +34,7 @@ type Credentials struct {
 type ClusterData struct {
 	ClusterInfo  ClusterInfo
 	ClusterStats ClusterStats
+    ShardStores []ShardStores
     Recoveries     []Recovery
 	NodeStats    []NodeStats
 	IndexStats    []IndexStats
@@ -69,6 +71,18 @@ type ClusterStats struct {
 			ReservedInBytes         int    `json:"reserved_in_bytes"`
 		} `json:"store"`
 	} `json:"indices"`
+}
+
+// manually added while fetching
+type ShardStores struct {
+    Index string
+    Shard string
+    Stores []ShardStore
+}
+
+type ShardStore struct {
+    Name string
+    Allocation string
 }
 
 type Recovery struct {
@@ -323,6 +337,15 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 	})
 
 	errorGroup.Go(func() error {
+		shardStores, err := fetchShardStores(ctx, endpoint, credentials, timeoutSeconds, insecure)
+		if err != nil {
+			return err
+		}
+		clusterData.ShardStores = *shardStores
+		return nil
+	})
+
+	errorGroup.Go(func() error {
 		recoveries, err := fetchRecoveries(ctx, endpoint, credentials, timeoutSeconds, insecure)
 		if err != nil {
 			return err
@@ -362,6 +385,13 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 	if err := errorGroup.Wait(); err != nil {
 		return nil, err
 	}
+
+	sort.Slice(clusterData.ShardStores, func(i, j int) bool {
+		if clusterData.ShardStores[i].Index == clusterData.ShardStores[j].Index {
+		    return clusterData.ShardStores[i].Shard < clusterData.ShardStores[j].Shard
+        }
+		return clusterData.ShardStores[i].Index < clusterData.ShardStores[j].Index
+	})
 
 	sort.Slice(clusterData.Recoveries, func(i, j int) bool {
 		return clusterData.Recoveries[i].TotalTimeInMillis > clusterData.Recoveries[j].TotalTimeInMillis
@@ -455,6 +485,103 @@ func fetchClusterStats(ctx context.Context, endpoint string, credentials *Creden
 	}
 
 	return &clusterStats, nil
+}
+
+// TODO: refactor to make this somehow more readable and cleaner?
+func fetchShardStores(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]ShardStores, error) {
+	httpClient := httpClient(timeoutSeconds, insecure)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+shardStoresPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(credentials.Username, credentials.Password)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawMap map[string]json.RawMessage
+	if err = json.Unmarshal(body, &rawMap); err != nil {
+		return nil, err
+	}
+
+	var indexMap map[string]json.RawMessage
+	if err = json.Unmarshal(rawMap["indices"], &indexMap); err != nil {
+		return nil, err
+	}
+
+    var shardStoresArray []ShardStores
+
+    for index, indexInfo := range indexMap {
+        var shardStores ShardStores = ShardStores {
+            Index: index,
+        }
+
+	    var shardWrapperMap map[string]json.RawMessage
+        if err = json.Unmarshal(indexInfo, &shardWrapperMap); err != nil {
+            return nil, err
+        }
+
+        for _, shardWrapperInfo := range shardWrapperMap {
+            var shardMap map[string]json.RawMessage
+            if err = json.Unmarshal(shardWrapperInfo, &shardMap); err != nil {
+                return nil, err
+            }
+
+            for shard, shardInfo := range shardMap {
+                shardStores.Shard = shard
+
+                var storeWrapperMap map[string]json.RawMessage
+                if err = json.Unmarshal(shardInfo, &storeWrapperMap); err != nil {
+                    return nil, err
+                }
+
+                for _, storesInfo := range storeWrapperMap {
+                    var storesMap []map[string]json.RawMessage
+                    if err = json.Unmarshal(storesInfo, &storesMap); err != nil {
+                        return nil, err
+                    }
+
+
+                    for _, storeDetails := range storesMap {
+                        var shardStore ShardStore = ShardStore{}
+
+                        if err = json.Unmarshal(storeDetails["allocation"], &shardStore.Allocation); err != nil {
+                            return nil, err
+                        }
+
+                        for key, storeDetailsMap := range storeDetails {
+                            if key != "allocation" && key != "allocation_id" {
+                                var storeMap map[string]json.RawMessage
+                                if err = json.Unmarshal(storeDetailsMap, &storeMap); err != nil {
+                                    return nil, err
+                                }
+
+                                if err = json.Unmarshal(storeMap["name"], &shardStore.Name); err != nil {
+                                    return nil, err
+                                }
+                                
+                                shardStores.Stores = append(shardStores.Stores, shardStore)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        shardStoresArray = append(shardStoresArray, shardStores)
+    }
+    
+	return &shardStoresArray, nil
 }
 
 func fetchRecoveries(ctx context.Context, endpoint string, credentials *Credentials, timeoutSeconds uint, insecure bool) (*[]Recovery, error) {
