@@ -3,7 +3,7 @@ package indexscreen
 import (
 	"esmon/elasticsearch"
 	"esmon/tui/styles"
-    "fmt"
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -97,7 +97,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			indexTableRows = append(indexTableRows, table.Row{
 				row.Name,
 				row.Health,
-                row.Status,
+				row.Status,
 				fmt.Sprintf("%d", row.Total.Docs.Count),
 				strings.ToUpper(row.Total.Store.Size),
 			})

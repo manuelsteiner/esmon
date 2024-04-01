@@ -92,22 +92,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		var shardAllocationTableRows []table.Row
 
 		for _, row := range msg {
-            var primaryNodes []string
-            var replicaNodes []string
+			var primaryNodes []string
+			var replicaNodes []string
 
-            for _, store := range row.Stores {
-                if store.Allocation == "primary" {
-                    primaryNodes = append(primaryNodes, store.Name)
-                } else {
-                    replicaNodes = append(replicaNodes, store.Name)
-                }
-            }
+			for _, store := range row.Stores {
+				if store.Allocation == "primary" {
+					primaryNodes = append(primaryNodes, store.Name)
+				} else {
+					replicaNodes = append(replicaNodes, store.Name)
+				}
+			}
 
 			shardAllocationTableRows = append(shardAllocationTableRows, table.Row{
 				row.Index,
 				row.Shard,
-                strings.Join(primaryNodes, ", "),
-                strings.Join(replicaNodes, ", "),
+				strings.Join(primaryNodes, ", "),
+				strings.Join(replicaNodes, ", "),
 			})
 		}
 

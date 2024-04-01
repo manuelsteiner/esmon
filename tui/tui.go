@@ -39,7 +39,7 @@ var (
 	clusterHealthRedStyle    = lipgloss.NewStyle().Foreground(defaultTheme.BackgroundColorStatusRed)
 	commandInfoStyle         = lipgloss.NewStyle().Height(styles.OverviewHeight)
 
-	contentStyle = lipgloss.NewStyle().Height(1).Border(lipgloss.RoundedBorder()).Foreground(defaultTheme.ForegroundColorLight)
+	contentStyle            = lipgloss.NewStyle().Height(1).Border(lipgloss.RoundedBorder()).Foreground(defaultTheme.ForegroundColorLight)
 	compactModePaddingStyle = lipgloss.NewStyle().Height(1)
 
 	statusStyle                       = lipgloss.NewStyle().Height(1)
@@ -107,8 +107,8 @@ var (
 		&defaultKeyMap.compactMode,
 	}
 
-    refreshContextCancelFunc context.CancelFunc
-    refreshTickContextCancelFunc context.CancelFunc
+	refreshContextCancelFunc     context.CancelFunc
+	refreshTickContextCancelFunc context.CancelFunc
 )
 
 type errMsg error
@@ -157,15 +157,15 @@ type mainModel struct {
 
 	theme styles.Theme
 
-	loadingScreen loadingscreen.Model
-	shardAllocationScreen shardallocationscreen.Model
+	loadingScreen          loadingscreen.Model
+	shardAllocationScreen  shardallocationscreen.Model
 	relocatingShardsScreen relocatingshardsscreen.Model
-	nodeScreen    nodescreen.Model
-	indexScreen    indexscreen.Model
-	clusterScreen clusterscreen.Model
+	nodeScreen             nodescreen.Model
+	indexScreen            indexscreen.Model
+	clusterScreen          clusterscreen.Model
 
-	screen screen
-    compactMode bool
+	screen      screen
+	compactMode bool
 
 	clusterConfig  []config.ClusterConfig
 	currentCluster *config.ClusterConfig
@@ -197,7 +197,7 @@ func NewMainModel() mainModel {
 	m.clusterScreen = clusterscreen.New(&defaultTheme)
 
 	m.screen = loading
-    m.compactMode = false
+	m.compactMode = false
 
 	m.refreshing = false
 	m.refreshError = false
@@ -242,8 +242,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		overviewStyle.Width(m.width)
 		infoStyle.Width(m.width - logoWidth)
 		contentStyle.Width(m.width - 2)
-		contentStyle.Height(m.height -  styles.OverviewHeight - 5)
-		compactModePaddingStyle.Height(m.height -  2*styles.OverviewHeight - 3)
+		contentStyle.Height(m.height - styles.OverviewHeight - 5)
+		compactModePaddingStyle.Height(m.height - 2*styles.OverviewHeight - 3)
 		statusStyle.Width(m.width)
 		statusGreenStyle.Width(m.width)
 		statusYellowStyle.Width(m.width)
@@ -315,31 +315,31 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, defaultKeyMap.changeAutorefreshInterval):
 			cmds = append(cmds, changeAutorefreshInterval(m.refreshIntervalSeconds))
 		case key.Matches(msg, defaultKeyMap.quit):
-            if refreshContextCancelFunc != nil {
-                refreshContextCancelFunc()
-            }
-            if refreshTickContextCancelFunc != nil {
-                refreshTickContextCancelFunc()
-            }
+			if refreshContextCancelFunc != nil {
+				refreshContextCancelFunc()
+			}
+			if refreshTickContextCancelFunc != nil {
+				refreshTickContextCancelFunc()
+			}
 			cmds = append(cmds, tea.Quit)
 		default:
-            switch m.screen {
-            case shardAllocation:
-			    m.shardAllocationScreen, cmd = m.shardAllocationScreen.Update(msg)
-			    cmds = append(cmds, cmd)
-            case relocatingShards:
-			    m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(msg)
-			    cmds = append(cmds, cmd)
-            case nodeOverview:
-			    m.nodeScreen, cmd = m.nodeScreen.Update(msg)
-			    cmds = append(cmds, cmd)
-            case indexOverview:
-			    m.indexScreen, cmd = m.indexScreen.Update(msg)
-			    cmds = append(cmds, cmd)
-            case clusters:
-			    m.clusterScreen, cmd = m.clusterScreen.Update(msg)
-			    cmds = append(cmds, cmd)
-            }
+			switch m.screen {
+			case shardAllocation:
+				m.shardAllocationScreen, cmd = m.shardAllocationScreen.Update(msg)
+				cmds = append(cmds, cmd)
+			case relocatingShards:
+				m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(msg)
+				cmds = append(cmds, cmd)
+			case nodeOverview:
+				m.nodeScreen, cmd = m.nodeScreen.Update(msg)
+				cmds = append(cmds, cmd)
+			case indexOverview:
+				m.indexScreen, cmd = m.indexScreen.Update(msg)
+				cmds = append(cmds, cmd)
+			case clusters:
+				m.clusterScreen, cmd = m.clusterScreen.Update(msg)
+				cmds = append(cmds, cmd)
+			}
 		}
 
 	case refreshErrorMsg:
@@ -347,9 +347,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshError = true
 
 	case autorefreshIntervalChangeMsg:
-        if refreshTickContextCancelFunc != nil {
-            refreshTickContextCancelFunc()
-        }
+		if refreshTickContextCancelFunc != nil {
+			refreshTickContextCancelFunc()
+		}
 
 		m.refreshIntervalSeconds = uint(msg)
 
@@ -426,33 +426,33 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.clusterData != nil {
 			m.lastRefresh = time.Now()
 
-            m.shardAllocationScreen, cmd = m.shardAllocationScreen.Update(
-                shardallocationscreen.ShardAllocationMsg(m.clusterData.ShardStores),
-            )
+			m.shardAllocationScreen, cmd = m.shardAllocationScreen.Update(
+				shardallocationscreen.ShardAllocationMsg(m.clusterData.ShardStores),
+			)
 			cmds = append(cmds, cmd)
 
-            m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(
-                relocatingshardsscreen.ShardMsg(m.clusterData.Recoveries),
-            )
+			m.relocatingShardsScreen, cmd = m.relocatingShardsScreen.Update(
+				relocatingshardsscreen.ShardMsg(m.clusterData.Recoveries),
+			)
 			cmds = append(cmds, cmd)
 
 			m.nodeScreen, cmd = m.nodeScreen.Update(
-                nodescreen.NodeMsg {
-                    Nodes: m.clusterData.NodeStats,
-                    MasterNode: m.clusterData.MasterNode,
-                },
-            )
+				nodescreen.NodeMsg{
+					Nodes:      m.clusterData.NodeStats,
+					MasterNode: m.clusterData.MasterNode,
+				},
+			)
 			cmds = append(cmds, cmd)
 
-            m.indexScreen, cmd = m.indexScreen.Update(
-                indexscreen.IndexMsg(m.clusterData.IndexStats),
-            )
+			m.indexScreen, cmd = m.indexScreen.Update(
+				indexscreen.IndexMsg(m.clusterData.IndexStats),
+			)
 			cmds = append(cmds, cmd)
 		} else {
 			m.refreshError = true
 		}
 
-        m.compactMode = msg.args.CompactMode
+		m.compactMode = msg.args.CompactMode
 
 		if m.currentCluster != nil {
 			m.screen = shardAllocation
@@ -476,12 +476,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case clusterscreen.ClusterChangeMsg:
-        if refreshContextCancelFunc != nil {
-            refreshContextCancelFunc()
-        }
-        if refreshTickContextCancelFunc != nil {
-            refreshTickContextCancelFunc()
-        }
+		if refreshContextCancelFunc != nil {
+			refreshContextCancelFunc()
+		}
+		if refreshTickContextCancelFunc != nil {
+			refreshTickContextCancelFunc()
+		}
 
 		index := slices.IndexFunc(
 			m.clusterConfig,
@@ -583,7 +583,7 @@ func (m mainModel) View() string {
 	}
 	clusterActiveShardsPercent := ""
 	if m.clusterData != nil {
-		clusterActiveShardsPercent =  m.clusterData.ClusterInfo.ActiveShardsPercent
+		clusterActiveShardsPercent = m.clusterData.ClusterInfo.ActiveShardsPercent
 	}
 
 	clusterInfoTable.Row("Cluster:", clusterName)
@@ -607,17 +607,17 @@ func (m mainModel) View() string {
 		StyleFunc(func(row, col int) lipgloss.Style {
 			switch col {
 			case 0:
-                if row == int(m.screen) {
-                    return kvTableKeyStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
-                } else {
-				    return kvTableKeyStyle
-                }
+				if row == int(m.screen) {
+					return kvTableKeyStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
+				} else {
+					return kvTableKeyStyle
+				}
 			case 1:
-                if row == int(m.screen) {
-                    return kvTableValueStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
-                } else {
-				    return kvTableValueStyle
-                }
+				if row == int(m.screen) {
+					return kvTableValueStyle.Copy().Foreground(m.theme.ForegroundColorHighlighted)
+				} else {
+					return kvTableValueStyle
+				}
 			default:
 				return lipgloss.NewStyle()
 			}
@@ -682,26 +682,26 @@ func (m mainModel) View() string {
 		statusRefreshInfoRender = statusRefreshInfoRedStyle.Render(refreshInfoString)
 	}
 
-    if m.compactMode {
-        return lipgloss.JoinVertical(
-            lipgloss.Top,
-            logoStyle.Copy().PaddingBottom(1).Render(constants.Logo),
-            lipgloss.
-                NewStyle().
-                PaddingBottom(1).
-                Foreground(m.theme.ForegroundColorLight).
-                Render("<v> Normal mode"),
-            clusterInfoTable.Render(),
-            compactModePaddingStyle.Render(),
-            statusStyle.Render(
-                lipgloss.JoinHorizontal(
-                    lipgloss.Top,
-                    statusRefreshIndicatorRender,
-                    statusRefreshInfoRender,
-                ),
-            ),
-        )
-    }
+	if m.compactMode {
+		return lipgloss.JoinVertical(
+			lipgloss.Top,
+			logoStyle.Copy().PaddingBottom(1).Render(constants.Logo),
+			lipgloss.
+				NewStyle().
+				PaddingBottom(1).
+				Foreground(m.theme.ForegroundColorLight).
+				Render("<v> Normal mode"),
+			clusterInfoTable.Render(),
+			compactModePaddingStyle.Render(),
+			statusStyle.Render(
+				lipgloss.JoinHorizontal(
+					lipgloss.Top,
+					statusRefreshIndicatorRender,
+					statusRefreshInfoRender,
+				),
+			),
+		)
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
@@ -749,18 +749,18 @@ func statusRefreshInfoWidth(refreshIntervalSeconds uint) int {
 }
 
 func autorefreshTick(intervalSeconds uint) tea.Cmd {
-    return func() tea.Msg {
-        var ctx context.Context
-        ctx, refreshTickContextCancelFunc = context.WithCancel(context.Background())
+	return func() tea.Msg {
+		var ctx context.Context
+		ctx, refreshTickContextCancelFunc = context.WithCancel(context.Background())
 
 		timer := time.NewTimer(time.Duration(intervalSeconds) * time.Second)
 
-        select {
-        case t := <- timer.C:
-		    return autorefreshTickMsg(t)
-        case <- ctx.Done():
-            return nil
-        }
+		select {
+		case t := <-timer.C:
+			return autorefreshTickMsg(t)
+		case <-ctx.Done():
+			return nil
+		}
 	}
 }
 
@@ -768,16 +768,16 @@ func initProgram() tea.Cmd {
 	return func() tea.Msg {
 		args, err := arguments.Parse()
 		if err != nil {
-            return errMsg(errors.New("Failed to parse arguments: " + err.Error()))
+			return errMsg(errors.New("Failed to parse arguments: " + err.Error()))
 		}
 
 		conf, err := config.Load(args.Config)
 		if err != nil {
-            return errMsg(errors.New("Failed to load configuratin file: " + err.Error()))
+			return errMsg(errors.New("Failed to load configuratin file: " + err.Error()))
 		}
 
 		if err := config.Validate(conf); err != nil {
-            return errMsg(errors.New("Failed to validate configuratin file: " + err.Error()))
+			return errMsg(errors.New("Failed to validate configuratin file: " + err.Error()))
 		}
 
 		var currentCluster *config.ClusterConfig = nil
@@ -801,13 +801,13 @@ func initProgram() tea.Cmd {
 
 			if index == -1 {
 				return errMsg(
-                    errors.New(
-                        fmt.Sprintf(
-                            "Failed to find cluster with alias %s in configuration.\n",
-                            args.Cluster,
-                        ),
-                    ),
-                )
+					errors.New(
+						fmt.Sprintf(
+							"Failed to find cluster with alias %s in configuration.\n",
+							args.Cluster,
+						),
+					),
+				)
 			}
 
 			currentCluster = &conf.Clusters[index]
@@ -825,10 +825,10 @@ func initProgram() tea.Cmd {
 			}
 
 			if err == nil {
-                var ctx context.Context
-                ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
+				var ctx context.Context
+				ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
 				clusterData, err = elasticsearch.FetchData(
-                    ctx,
+					ctx,
 					currentCluster.Endpoint,
 					credentials,
 					conf.General.RefreshInterval,
@@ -874,16 +874,16 @@ func refreshData(currentCluster *config.ClusterConfig, defaultCredentials *elast
 			return errMsg(err)
 		}
 
-        var ctx context.Context
-        ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
+		var ctx context.Context
+		ctx, refreshContextCancelFunc = context.WithCancel(context.Background())
 
 		clusterData, err := elasticsearch.FetchData(
-            ctx,
-            currentCluster.Endpoint,
-            credentials,
-            httpConfig.Timeout,
-            httpConfig.Insecure,
-        )
+			ctx,
+			currentCluster.Endpoint,
+			credentials,
+			httpConfig.Timeout,
+			httpConfig.Insecure,
+		)
 		if err != nil {
 			return refreshErrorMsg(err)
 		}

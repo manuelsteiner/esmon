@@ -19,7 +19,7 @@ import (
 const (
 	clusterHealthPath = "/_cluster/health?human"
 	clusterStatsPath  = "/_cluster/stats?human"
-    shardStoresPath   = "/_shard_stores?status=all&human"
+	shardStoresPath   = "/_shard_stores?status=all&human"
 	recoveryPath      = "/_recovery?active_only&human"
 	nodeStatsPath     = "/_nodes/stats/indices,os,fs?human"
 	indexStatsPath    = "/_stats?human"
@@ -34,10 +34,10 @@ type Credentials struct {
 type ClusterData struct {
 	ClusterInfo  ClusterInfo
 	ClusterStats ClusterStats
-    ShardStores []ShardStores
-    Recoveries     []Recovery
+	ShardStores  []ShardStores
+	Recoveries   []Recovery
 	NodeStats    []NodeStats
-	IndexStats    []IndexStats
+	IndexStats   []IndexStats
 	MasterNode   *NodeStats
 }
 
@@ -75,32 +75,32 @@ type ClusterStats struct {
 
 // manually added while fetching
 type ShardStores struct {
-    Index string
-    Shard string
-    Stores []ShardStore
+	Index  string
+	Shard  string
+	Stores []ShardStore
 }
 
 type ShardStore struct {
-    Name string
-    Allocation string
+	Name       string
+	Allocation string
 }
 
 type Recovery struct {
-	ID                int    `json:"id"`
-	Type              string `json:"type"`
-	Stage             string `json:"stage"`
-	Primary           bool   `json:"primary"`
-	StartTime         string `json:"start_time"`
-	StartTimeInMillis int64  `json:"start_time_in_millis"`
-	StopTime          string `json:"stop_time"`
-	StopTimeInMillis  int    `json:"stop_time_in_millis"`
-	TotalTime         string `json:"total_time"`
-	TotalTimeInMillis int    `json:"total_time_in_millis"`
-    Source            RecoveryPeer `json:"source"`
-    Target            RecoveryPeer `json:"target"`
-    Shard             string // manually added while fetching
-	Index struct {
-        Name string // manually added while fetching
+	ID                int          `json:"id"`
+	Type              string       `json:"type"`
+	Stage             string       `json:"stage"`
+	Primary           bool         `json:"primary"`
+	StartTime         string       `json:"start_time"`
+	StartTimeInMillis int64        `json:"start_time_in_millis"`
+	StopTime          string       `json:"stop_time"`
+	StopTimeInMillis  int          `json:"stop_time_in_millis"`
+	TotalTime         string       `json:"total_time"`
+	TotalTimeInMillis int          `json:"total_time_in_millis"`
+	Source            RecoveryPeer `json:"source"`
+	Target            RecoveryPeer `json:"target"`
+	Shard             string       // manually added while fetching
+	Index             struct {
+		Name string // manually added while fetching
 		Size struct {
 			Total                        string `json:"total"`
 			TotalInBytes                 int    `json:"total_in_bytes"`
@@ -128,29 +128,29 @@ type Recovery struct {
 }
 
 type RecoveryPeerInterface interface {
-    Type() string
-    PeerName() string
+	Type() string
+	PeerName() string
 }
 
 type RecoveryPeer struct {
-    Peer RecoveryPeerInterface
+	Peer RecoveryPeerInterface
 }
 
 func (p *RecoveryPeer) UnmarshalJSON(data []byte) error {
 
-    var nodePeer NodePeer 
-    if err := json.Unmarshal(data, &nodePeer); err == nil {
-        p.Peer = nodePeer
-        return nil
-    } 
+	var nodePeer NodePeer
+	if err := json.Unmarshal(data, &nodePeer); err == nil {
+		p.Peer = nodePeer
+		return nil
+	}
 
-    var repositoryPeer NodePeer 
-    if err := json.Unmarshal(data, &nodePeer); err == nil {
-        p.Peer = repositoryPeer
-        return nil
-    } 
- 
-    return errors.New("Can not unmarshl RecoveryPeer")
+	var repositoryPeer NodePeer
+	if err := json.Unmarshal(data, &nodePeer); err == nil {
+		p.Peer = repositoryPeer
+		return nil
+	}
+
+	return errors.New("Can not unmarshl RecoveryPeer")
 }
 
 type NodePeer struct {
@@ -162,29 +162,29 @@ type NodePeer struct {
 }
 
 func (n NodePeer) Type() string {
-    return "Node"
+	return "Node"
 }
 
 func (n NodePeer) PeerName() string {
-    return n.Name
+	return n.Name
 }
 
 type RepositoryPeer struct {
-	Repository  string `json:"repository"`
-	Snapshot    string `json:"snapshot"`
+	Repository string `json:"repository"`
+	Snapshot   string `json:"snapshot"`
 }
 
 func (n RepositoryPeer) Type() string {
-    return "Repository"
+	return "Repository"
 }
 
 func (n RepositoryPeer) PeerName() string {
-    return n.Repository
+	return n.Repository
 }
 
 type NodeStats struct {
 	Timestamp        int64    `json:"timestamp"`
-    Id               string    // manually added while fetching
+	Id               string   // manually added while fetching
 	Name             string   `json:"name"`
 	TransportAddress string   `json:"transport_address"`
 	Host             string   `json:"host"`
@@ -388,8 +388,8 @@ func FetchData(ctx context.Context, endpoint string, credentials *Credentials, t
 
 	sort.Slice(clusterData.ShardStores, func(i, j int) bool {
 		if clusterData.ShardStores[i].Index == clusterData.ShardStores[j].Index {
-		    return clusterData.ShardStores[i].Shard < clusterData.ShardStores[j].Shard
-        }
+			return clusterData.ShardStores[i].Shard < clusterData.ShardStores[j].Shard
+		}
 		return clusterData.ShardStores[i].Index < clusterData.ShardStores[j].Index
 	})
 
@@ -519,68 +519,67 @@ func fetchShardStores(ctx context.Context, endpoint string, credentials *Credent
 		return nil, err
 	}
 
-    var shardStoresArray []ShardStores
+	var shardStoresArray []ShardStores
 
-    for index, indexInfo := range indexMap {
-        var shardStores ShardStores = ShardStores {
-            Index: index,
-        }
+	for index, indexInfo := range indexMap {
+		var shardStores ShardStores = ShardStores{
+			Index: index,
+		}
 
-	    var shardWrapperMap map[string]json.RawMessage
-        if err = json.Unmarshal(indexInfo, &shardWrapperMap); err != nil {
-            return nil, err
-        }
+		var shardWrapperMap map[string]json.RawMessage
+		if err = json.Unmarshal(indexInfo, &shardWrapperMap); err != nil {
+			return nil, err
+		}
 
-        for _, shardWrapperInfo := range shardWrapperMap {
-            var shardMap map[string]json.RawMessage
-            if err = json.Unmarshal(shardWrapperInfo, &shardMap); err != nil {
-                return nil, err
-            }
+		for _, shardWrapperInfo := range shardWrapperMap {
+			var shardMap map[string]json.RawMessage
+			if err = json.Unmarshal(shardWrapperInfo, &shardMap); err != nil {
+				return nil, err
+			}
 
-            for shard, shardInfo := range shardMap {
-                shardStores.Shard = shard
+			for shard, shardInfo := range shardMap {
+				shardStores.Shard = shard
 
-                var storeWrapperMap map[string]json.RawMessage
-                if err = json.Unmarshal(shardInfo, &storeWrapperMap); err != nil {
-                    return nil, err
-                }
+				var storeWrapperMap map[string]json.RawMessage
+				if err = json.Unmarshal(shardInfo, &storeWrapperMap); err != nil {
+					return nil, err
+				}
 
-                for _, storesInfo := range storeWrapperMap {
-                    var storesMap []map[string]json.RawMessage
-                    if err = json.Unmarshal(storesInfo, &storesMap); err != nil {
-                        return nil, err
-                    }
+				for _, storesInfo := range storeWrapperMap {
+					var storesMap []map[string]json.RawMessage
+					if err = json.Unmarshal(storesInfo, &storesMap); err != nil {
+						return nil, err
+					}
 
+					for _, storeDetails := range storesMap {
+						var shardStore ShardStore = ShardStore{}
 
-                    for _, storeDetails := range storesMap {
-                        var shardStore ShardStore = ShardStore{}
+						if err = json.Unmarshal(storeDetails["allocation"], &shardStore.Allocation); err != nil {
+							return nil, err
+						}
 
-                        if err = json.Unmarshal(storeDetails["allocation"], &shardStore.Allocation); err != nil {
-                            return nil, err
-                        }
+						for key, storeDetailsMap := range storeDetails {
+							if key != "allocation" && key != "allocation_id" {
+								var storeMap map[string]json.RawMessage
+								if err = json.Unmarshal(storeDetailsMap, &storeMap); err != nil {
+									return nil, err
+								}
 
-                        for key, storeDetailsMap := range storeDetails {
-                            if key != "allocation" && key != "allocation_id" {
-                                var storeMap map[string]json.RawMessage
-                                if err = json.Unmarshal(storeDetailsMap, &storeMap); err != nil {
-                                    return nil, err
-                                }
+								if err = json.Unmarshal(storeMap["name"], &shardStore.Name); err != nil {
+									return nil, err
+								}
 
-                                if err = json.Unmarshal(storeMap["name"], &shardStore.Name); err != nil {
-                                    return nil, err
-                                }
-                                
-                                shardStores.Stores = append(shardStores.Stores, shardStore)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+								shardStores.Stores = append(shardStores.Stores, shardStore)
+							}
+						}
+					}
+				}
+			}
+		}
 
-        shardStoresArray = append(shardStoresArray, shardStores)
-    }
-    
+		shardStoresArray = append(shardStoresArray, shardStores)
+	}
+
 	return &shardStoresArray, nil
 }
 
@@ -610,26 +609,26 @@ func fetchRecoveries(ctx context.Context, endpoint string, credentials *Credenti
 		return nil, err
 	}
 
-    var recoveries []Recovery
-    for index, indexMap := range rawMap {
-	    var shardMap map[string]json.RawMessage
-        if err = json.Unmarshal(indexMap, &shardMap); err != nil {
-            return nil, err
-        }
+	var recoveries []Recovery
+	for index, indexMap := range rawMap {
+		var shardMap map[string]json.RawMessage
+		if err = json.Unmarshal(indexMap, &shardMap); err != nil {
+			return nil, err
+		}
 
-        var indexRecoveries []Recovery
-        if err = json.Unmarshal(shardMap["shards"], &indexRecoveries); err != nil {
-            return nil, err
-        }
+		var indexRecoveries []Recovery
+		if err = json.Unmarshal(shardMap["shards"], &indexRecoveries); err != nil {
+			return nil, err
+		}
 
-        for _, recovery := range indexRecoveries {
-            recovery.Index.Name = index
+		for _, recovery := range indexRecoveries {
+			recovery.Index.Name = index
 
-            if recovery.Type == "PEER" {
-                recoveries = append(recoveries, recovery)
-            }
-        }
-    }
+			if recovery.Type == "PEER" {
+				recoveries = append(recoveries, recovery)
+			}
+		}
+	}
 
 	return &recoveries, nil
 }

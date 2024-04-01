@@ -99,21 +99,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if row.Primary {
 				shard += "[P]"
 			} else {
-                shard += "[R]"
-            }
+				shard += "[R]"
+			}
 
 			shardTableRows = append(shardTableRows, table.Row{
 				row.Index.Name,
-                shard,
+				shard,
 				row.Source.Peer.PeerName(),
 				row.Target.Peer.PeerName(),
-                fmt.Sprintf(
-                    "%s (%s/%s)",
-                    strings.TrimSuffix(row.Index.Size.Percent, "%"),
-                    strings.ToUpper(row.Index.Size.Recovered),
-                    strings.ToUpper(row.Index.Size.Total),
-                ),
-                row.TotalTime,
+				fmt.Sprintf(
+					"%s (%s/%s)",
+					strings.TrimSuffix(row.Index.Size.Percent, "%"),
+					strings.ToUpper(row.Index.Size.Recovered),
+					strings.ToUpper(row.Index.Size.Total),
+				),
+				row.TotalTime,
 			})
 		}
 
