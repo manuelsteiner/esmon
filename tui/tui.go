@@ -40,6 +40,7 @@ var (
 	commandInfoStyle         = lipgloss.NewStyle().Height(styles.OverviewHeight)
 
 	contentStyle = lipgloss.NewStyle().Height(1).Border(lipgloss.RoundedBorder()).Foreground(defaultTheme.ForegroundColorLight)
+	compactModePaddingStyle = lipgloss.NewStyle().Height(1)
 
 	statusStyle                       = lipgloss.NewStyle().Height(1)
 	statusGreenStyle                  = statusStyle.Copy().Foreground(defaultTheme.ForegroundColorLight).Background(defaultTheme.BackgroundColorStatusGreen)
@@ -79,6 +80,10 @@ var (
 			key.WithKeys("c"),
 			key.WithHelp("<c>", "Clusters"),
 		),
+		compactMode: key.NewBinding(
+			key.WithKeys("v"),
+			key.WithHelp("<v>", "Compact view"),
+		),
 		refresh: key.NewBinding(
 			key.WithKeys("R"),
 			key.WithHelp("<R>", "refresh"),
@@ -99,7 +104,7 @@ var (
 		&defaultKeyMap.nodeOverview,
 		&defaultKeyMap.indexOverview,
 		&defaultKeyMap.clusters,
-		&defaultKeyMap.quit,
+		&defaultKeyMap.compactMode,
 	}
 
     refreshContextCancelFunc context.CancelFunc
@@ -114,6 +119,7 @@ type keyMap struct {
 	nodeOverview              key.Binding
 	indexOverview             key.Binding
 	clusters                  key.Binding
+	compactMode               key.Binding
 	refresh                   key.Binding
 	changeAutorefreshInterval key.Binding
 	quit                      key.Binding
@@ -159,6 +165,7 @@ type mainModel struct {
 	clusterScreen clusterscreen.Model
 
 	screen screen
+    compactMode bool
 
 	clusterConfig  []config.ClusterConfig
 	currentCluster *config.ClusterConfig
@@ -190,6 +197,7 @@ func NewMainModel() mainModel {
 	m.clusterScreen = clusterscreen.New(&defaultTheme)
 
 	m.screen = loading
+    m.compactMode = false
 
 	m.refreshing = false
 	m.refreshError = false
@@ -235,6 +243,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		infoStyle.Width(m.width - logoWidth)
 		contentStyle.Width(m.width - 2)
 		contentStyle.Height(m.height -  styles.OverviewHeight - 5)
+		compactModePaddingStyle.Height(m.height -  2*styles.OverviewHeight - 3)
 		statusStyle.Width(m.width)
 		statusGreenStyle.Width(m.width)
 		statusYellowStyle.Width(m.width)
@@ -279,16 +288,18 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, defaultKeyMap.shardAllocation):
+		case key.Matches(msg, defaultKeyMap.shardAllocation) && !m.compactMode:
 			m.screen = shardAllocation
-		case key.Matches(msg, defaultKeyMap.relocatingShards):
+		case key.Matches(msg, defaultKeyMap.relocatingShards) && !m.compactMode:
 			m.screen = relocatingShards
-		case key.Matches(msg, defaultKeyMap.nodeOverview):
+		case key.Matches(msg, defaultKeyMap.nodeOverview) && !m.compactMode:
 			m.screen = nodeOverview
-		case key.Matches(msg, defaultKeyMap.indexOverview):
+		case key.Matches(msg, defaultKeyMap.indexOverview) && !m.compactMode:
 			m.screen = indexOverview
-		case key.Matches(msg, defaultKeyMap.clusters):
+		case key.Matches(msg, defaultKeyMap.clusters) && !m.compactMode:
 			m.screen = clusters
+		case key.Matches(msg, defaultKeyMap.compactMode):
+			m.compactMode = !m.compactMode
 		case key.Matches(msg, defaultKeyMap.refresh):
 			if m.currentCluster != nil && m.refreshIntervalSeconds == 0 && !m.refreshing {
 				m.refreshing = true
@@ -440,6 +451,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.refreshError = true
 		}
+
+        m.compactMode = msg.args.CompactMode
 
 		if m.currentCluster != nil {
 			m.screen = shardAllocation
@@ -668,6 +681,27 @@ func (m mainModel) View() string {
 	case m.clusterData.ClusterInfo.Status == "red":
 		statusRefreshInfoRender = statusRefreshInfoRedStyle.Render(refreshInfoString)
 	}
+
+    if m.compactMode {
+        return lipgloss.JoinVertical(
+            lipgloss.Top,
+            logoStyle.Copy().PaddingBottom(1).Render(constants.Logo),
+            lipgloss.
+                NewStyle().
+                PaddingBottom(1).
+                Foreground(m.theme.ForegroundColorLight).
+                Render("<v> Normal mode"),
+            clusterInfoTable.Render(),
+            compactModePaddingStyle.Render(),
+            statusStyle.Render(
+                lipgloss.JoinHorizontal(
+                    lipgloss.Top,
+                    statusRefreshIndicatorRender,
+                    statusRefreshInfoRender,
+                ),
+            ),
+        )
+    }
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,

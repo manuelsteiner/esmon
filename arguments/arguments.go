@@ -15,6 +15,7 @@ type Args struct {
 	Password string
 	Insecure *bool
 	Config   string
+    CompactMode bool
 }
 
 func Parse() (*Args, error) {
@@ -28,6 +29,7 @@ func Parse() (*Args, error) {
 	flag.StringVarP(&args.Password, "password", "p", "", "the pssword to use for endpoint authentication if provided as argument or none is specified in the configuration")
 	flag.BoolVarP(&insecure, "insecure", "k", false, "the pssword to use for endpoint authentication if provided as argument or none is specified in the configuration")
 	flag.StringVarP(&args.Config, "config", "f", "", "the configuration file to use")
+    flag.BoolVarP(&args.CompactMode, "compact", "m", false, "compact mode (shows only cluster overview):")
 
 	flag.Parse()
 
