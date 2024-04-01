@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"esmon/arguments"
 	"esmon/config"
 	"esmon/constants"
@@ -693,19 +694,16 @@ func initProgram() tea.Cmd {
 	return func() tea.Msg {
 		args, err := arguments.Parse()
 		if err != nil {
-			fmt.Println("Failed to parse arguments: ", err)
-			os.Exit(1)
+            return errMsg(errors.New("Failed to parse arguments: " + err.Error()))
 		}
 
 		conf, err := config.Load(args.Config)
 		if err != nil {
-			fmt.Println("Failed to load configuration file: ", err)
-			os.Exit(1)
+            return errMsg(errors.New("Failed to load configuratin file: " + err.Error()))
 		}
 
 		if err := config.Validate(conf); err != nil {
-			fmt.Println("Failed to validate configuration file: ", err)
-			os.Exit(1)
+            return errMsg(errors.New("Failed to validate configuratin file: " + err.Error()))
 		}
 
 		var currentCluster *config.ClusterConfig = nil
