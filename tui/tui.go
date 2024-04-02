@@ -679,26 +679,26 @@ func (m mainModel) View() string {
 		statusRefreshInfoRender = statusRefreshInfoRedStyle.Render(refreshInfoString)
 	}
 
-	if m.compactMode {
-		return lipgloss.JoinVertical(
-			lipgloss.Top,
-			logoStyle.Copy().PaddingBottom(1).Render(constants.Logo),
-			lipgloss.
-				NewStyle().
-				PaddingBottom(1).
-				Foreground(m.theme.ForegroundColorLight).
-				Render("<v> Normal mode"),
-			clusterInfoTable.Render(),
-			compactModePaddingStyle.Render(),
-			statusStyle.Render(
-				lipgloss.JoinHorizontal(
-					lipgloss.Top,
-					statusRefreshIndicatorRender,
-					statusRefreshInfoRender,
-				),
-			),
-		)
-	}
+    if m.compactMode {
+        return lipgloss.JoinVertical(
+            lipgloss.Top,
+            logoStyle.Copy().PaddingBottom(1).Render(constants.Logo),
+            lipgloss.
+                NewStyle().
+                PaddingBottom(1).
+                Foreground(m.theme.ForegroundColorLight).
+                Render("<v> Normal view"),
+            clusterInfoTable.Render(),
+            compactModePaddingStyle.Render(),
+            statusStyle.Render(
+                lipgloss.JoinHorizontal(
+                    lipgloss.Top,
+                    statusRefreshIndicatorRender,
+                    statusRefreshInfoRender,
+                ),
+            ),
+        )
+    }
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
