@@ -283,10 +283,6 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case tea.KeyMsg:
-		if m.screen == loading {
-			break
-		}
-
 		switch {
 		case key.Matches(msg, defaultKeyMap.shardAllocation) && !m.compactMode:
 			m.screen = shardAllocation
@@ -527,11 +523,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) View() string {
-	if m.screen == loading {
-		return m.loadingScreen.View()
-	}
 	if m.err != nil {
 		return m.err.Error()
+	}
+
+	if m.screen == loading {
+		return m.loadingScreen.View()
 	}
 
 	clusterInfoTable := table.New().
